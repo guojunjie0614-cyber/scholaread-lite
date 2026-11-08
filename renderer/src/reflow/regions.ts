@@ -45,13 +45,16 @@ export function transformRect(m: number[], x0: number, y0: number, x1: number, y
   };
 }
 
+/** Loop instead of Math.min(...): vector-heavy pages yield more drawings than the engine's argument limit. */
 export function unionRects(rects: Rect[]): Rect {
-  return {
-    x0: Math.min(...rects.map(r => r.x0)),
-    y0: Math.min(...rects.map(r => r.y0)),
-    x1: Math.max(...rects.map(r => r.x1)),
-    y1: Math.max(...rects.map(r => r.y1))
-  };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of rects) {
+    if (r.x0 < x0) x0 = r.x0;
+    if (r.y0 < y0) y0 = r.y0;
+    if (r.x1 > x1) x1 = r.x1;
+    if (r.y1 > y1) y1 = r.y1;
+  }
+  return { x0, y0, x1, y1 };
 }
 
 function intersection(a: Rect, b: Rect): Rect | null {
@@ -158,7 +161,12 @@ async function collectDrawings(page: PDFPageProxy) {
 function cluster(drawings: Drawing[], pageW: number, pageH: number): PageRegion[] {
   const gap = Math.max(4, pageW * 0.012);
   const parent = drawings.map((_, i) => i);
-  const find = (i: number): number => parent[i] === i ? i : (parent[i] = find(parent[i]));
+  // Iterative with path halving: dense vector pages produce chains deeper than the call stack.
+  const find = (i: number): number => {
+    while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+    return i;
+  };
+  const union = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; };
   const cells = new Map<string, number[]>();
   const keys = (r: Rect, pad = 0) => {
     const out: string[] = [];
@@ -167,18 +175,23 @@ function cluster(drawings: Drawing[], pageW: number, pageH: number): PageRegion[
         out.push(`${x}:${y}`);
     return out;
   };
+  const near = (r: Rect, q: Rect) => Math.max(r.x0 - q.x1, q.x0 - r.x1, 0) <= gap && Math.max(r.y0 - q.y1, q.y0 - r.y1, 0) <= gap;
   drawings.forEach((r, i) => {
-    const seen = new Set<number>();
-    for (const key of keys(r, gap))
-      for (const j of cells.get(key) ?? []) {
-        if (seen.has(j))
-          continue;
-        seen.add(j);
-        const q = drawings[j];
-        if (Math.max(r.x0 - q.x1, q.x0 - r.x1, 0) <= gap && Math.max(r.y0 - q.y1, q.y0 - r.y1, 0) <= gap)
-          parent[find(i)] = find(j);
-      }
-    for (const key of keys(r)) {
+    const own = keys(r), ownSet = new Set(own);
+    // Two rectangles touching one gap-sized cell are within `gap` on both axes, so each
+    // cell's members already form one component: joining its first member is exact.
+    for (const key of own) {
+      const cell = cells.get(key);
+      if (cell) union(i, cell[0]);
+    }
+    for (const key of keys(r, gap)) {
+      if (ownSet.has(key)) continue;
+      const cell = cells.get(key);
+      if (!cell || find(cell[0]) === find(i)) continue;
+      for (const j of cell)
+        if (near(r, drawings[j])) { union(i, j); break; }
+    }
+    for (const key of own) {
       const cell = cells.get(key) ?? [];
       cell.push(i);
       cells.set(key, cell);

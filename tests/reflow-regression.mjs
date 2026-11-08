@@ -593,6 +593,20 @@ try {
     assert.equal(blocks.filter(b => b.kind === 'figure').length, 0);
     assert(blocks.find(b => b.kind === 'table').crop[3] >= 322);
   });
+  await check('vector-dense page (>200k paths) clusters without exceeding the call stack', async () => {
+    const dense = [];
+    for (let i = 0; i < 210000; i++) {
+      const x = 80 + (i % 600) * .5, y = 120 + Math.floor(i / 600) * .5;
+      dense.push([x, y, x + .4, y + .4]);
+    }
+    dense.push([400, 600, 520, 680]);
+    const started = Date.now();
+    const { regions } = await extractPageRegions(page([], dense));
+    assert(Date.now() - started < 8000, 'dense clustering must stay near-linear');
+    assert.equal(regions.length, 2);
+    assert(Math.abs(regions[0].x0 - 80) <= 1 && Math.abs(regions[0].y0 - 120) <= 1);
+    assert.equal(regions[0].parts, 210000);
+  });
   console.log(`${count} reflow regression checks passed.`);
 } finally {
   await fs.rm(tmp, { recursive: true, force: true });
