@@ -2,7 +2,7 @@ import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import type { Block, BlockKind, TextRun } from '@shared/types';
 import { extractPageRegions, multiplyMatrices, transformRect, unionRects, type Rect, type PageRegion, type Drawing } from './regions';
 import { extractMathRegions } from './math';
-import { MATH_EXTENSION_FONT } from './math-fonts';
+import { MATH_EXTENSION_FONT, MATH_FONT } from './math-fonts';
 import { extractTableNotes } from './table-notes';
 import { parseCaption, isProseCaptionReference, isWrappedProseMention } from './captions';
 import { matchFigurePlates, groupFigurePlateRows } from './figure-plates';
@@ -13,8 +13,8 @@ import { identifyFrontMatter, identifyPublicationHeaders, identifyRepeatedPublic
 import { classifyReadingRoles } from './reading-roles';
 import { classifyReferences, endsReferenceSection, isBibliographicLine, isBibliographicEntryStart } from './references';
 import { isReferenceHeading } from '@shared/reading-content';
-import { composeDottedEquals, hasUnmappedGlyphs, recoverEncodedGlyphs } from './glyph-recovery';
-export const REFLOW_ENGINE_VERSION = 29;
+import { composeDottedEquals, composeEquationNumbers, hasUnmappedGlyphs, recoverEncodedGlyphs, splitInterleavedMathRuns } from './glyph-recovery';
+export const REFLOW_ENGINE_VERSION = 30;
 
 /** Running headers and floating figures must not interrupt an unfinished sentence. */
 export function orderFloatingContent<T extends Pick<Block, 'kind' | 'text' | 'readingRole'>>(blocks: T[]): T[] {
@@ -303,11 +303,29 @@ function joinLines(left: string, right: string): string {
   return `${left} ${right}`;
 }
 
-function paragraphs(lines: Line[], body: number, page: number, referenceState = { active: false }): Paragraph[] {
+/**
+ * Theses set body text at 1.5–2× leading; a fixed 1.75× gap would cut every line into
+ * its own paragraph. Returns a paragraph-break gap from the dominant body-line pitch
+ * (0 when there is too little evidence, leaving the fixed thresholds in charge).
+ */
+function dominantLeading(lines: Line[], body: number): number {
+  const votes = new Map<number, number>();
+  for (let i = 1; i < lines.length; i++) {
+    const a = lines[i - 1], b = lines[i], gap = b.y - a.y;
+    if (Math.abs(a.size - body) > 1 || Math.abs(b.size - body) > 1 || gap <= 0 || gap > body * 3 || xOverlap(a, b) <= 0) continue;
+    const key = Math.round(gap * 2) / 2;
+    votes.set(key, (votes.get(key) ?? 0) + 1);
+  }
+  const [pitch, count] = [...votes].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0] ?? [0, 0];
+  return count >= 3 ? pitch * 1.3 : 0;
+}
+
+function paragraphs(lines: Line[], body: number, page: number, referenceState = { active: false }, leadingHint?: number): Paragraph[] {
   const out: Paragraph[] = [];
   let prev: Line | null = null;
   let inReferences = referenceState.active;
   const right = Math.max(...lines.map(l => l.x1));
+  const leading = leadingHint ?? dominantLeading(lines, body);
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index], next = lines[index + 1], afterNext = lines[index + 2];
     let kind = line.readingRole === 'title' ? 'h1' as const : line.readingRole ? 'p' as const : lineKind(line, body, page);
@@ -350,7 +368,7 @@ function paragraphs(lines: Line[], body: number, page: number, referenceState = 
     const shortEnd = prev && prev.x1 < right - body * 2.5 && /[.!?。！？]$/.test(prev.text);
     const newParagraph = !last || !prev || kind !== last.kind || line.readingRole !== last.readingRole || startsItem ||
       hasUnmappedGlyphs(line.text) || hasUnmappedGlyphs(prev.text) ||
-      line.y - prev.y > Math.max(body * 1.75, prev.size * 1.8) ||
+      line.y - prev.y > Math.max(body * 1.75, prev.size * 1.8, leading) ||
       Math.abs(line.size - prev.size) > 1.4 || (kind === 'p' && !line.readingRole && (indented || shortEnd));
     if (newParagraph)
       out.push({ ...line, text: line.text, textRuns: lineTextRuns(line), size: line.size, bold: line.bold, lines: 1, kind });
@@ -511,29 +529,46 @@ function fitFigures(regions: PageRegion[], items: RawItem[], lines: Line[], body
     const primary = mergedRegions.filter(r => !consumed.has(r) && l.y0 >= r.y1 - 3 && l.y0 - r.y1 < 55 && xOverlap(l, r) > 0)
       .sort((a, b) => b.y1 - a.y1)[0];
     if (!primary) continue;
-    const col = cols.find(c => primary.x0 >= c.x0 - 4 && primary.x1 <= c.x1 + 4);
+    // A caption running across the (possibly figure-label-induced) gutter owns a page-wide figure.
+    const spansGutter = cols.length > 1 && l.x0 < cols[0].x1 - 4 && l.x1 > cols[1].x0 + 4;
+    const col = spansGutter ? { x0: 0, x1: width } : cols.find(c => primary.x0 >= c.x0 - 4 && primary.x1 <= c.x1 + 4);
     if (!col) continue;
     // Find the ceiling (nearest preceding prose paragraph, heading, table, or caption in the same column).
+    // Panel labels such as "a) Memristor-I (Lorenz-x)" belong to the figure, not to the prose above it.
+    const panelLabel = (line: Line) => /^\(?[a-h]\)\s*\S/.test(line.text) && line.x1 - line.x0 < (col.x1 - col.x0) * .6;
     const ceiling = Math.max(
       0,
       ...tables.filter(t => xOverlap(t, col) > 0 && t.y1 <= primary.y0 + 2).map(t => t.y1),
       ...lines.filter((prev, idx) => idx < i && prev.y1 <= primary.y0 + 2 && xOverlap(prev, col) > (col.x1 - col.x0) * .3 &&
+        !panelLabel(prev) &&
         (parseCaption(prev.text) || lineKind(prev, body, 2) !== 'p' ||
           (prev.size >= body * .92 && (prev.x1 - prev.x0 > (col.x1 - col.x0) * .55 || prev.text.length > 45))))
         .map(prev => prev.y1),
     );
-    const siblings = mergedRegions.filter(r => !consumed.has(r) && r !== primary &&
-      r.x0 >= col.x0 - 4 && r.x1 <= col.x1 + 4 &&
-      r.y0 >= ceiling && r.y1 <= l.y0 + 3 && primary.y0 - r.y1 < body * 4);
-    if (siblings.length) {
-      const combined = unionRects([primary, ...siblings]);
-      Object.assign(primary, combined);
-      siblings.forEach(s => consumed.add(s));
+    // Grow row by row: a 3×2 panel grid touches the caption only through its bottom row.
+    for (let grown = true; grown;) {
+      const siblings = mergedRegions.filter(r => !consumed.has(r) && r !== primary &&
+        r.x0 >= col.x0 - 4 && r.x1 <= col.x1 + 4 &&
+        r.y0 >= ceiling && r.y1 <= l.y0 + 3 && primary.y0 - r.y1 < body * 4);
+      grown = siblings.length > 0;
+      if (grown) {
+        Object.assign(primary, unionRects([primary, ...siblings]));
+        siblings.forEach(s => consumed.add(s));
+      }
     }
   }
 
   const figures: PageRegion[] = [];
-  for (const region of mergedRegions.filter(r => !consumed.has(r))) {
+  for (const source of mergedRegions.filter(r => !consumed.has(r))) {
+    // Elsevier paints one background rectangle behind a figure and its caption. A real
+    // caption line in the frame's lower half ends the figure; it is text, not artwork.
+    const framed = lines.filter((l, idx) => {
+      const label = parseCaption(l.text);
+      return label && label.kind !== 'table' && (label.hasDelimiter || !label.text) && !isProseCaptionReference(label) &&
+        !isWrappedProseMention(prevInColumn(lines, idx), l) && l.size <= body * 1.02 && xOverlap(l, source) > 0 &&
+        l.y0 > source.y0 + (source.y1 - source.y0) * .5 && l.y1 <= source.y1 + 3;
+    }).sort((a, b) => a.y0 - b.y0)[0];
+    const region = framed ? { ...source, y1: framed.y0 - 3 } : source;
     const caption = lines.filter((l, idx) => {
       const label = parseCaption(l.text);
       return label && label.kind !== 'table' && !isProseCaptionReference(label) && !isWrappedProseMention(prevInColumn(lines, idx), l) &&
@@ -552,7 +587,8 @@ function fitFigures(regions: PageRegion[], items: RawItem[], lines: Line[], body
       // Do not absorb a body prose line above or below the figure when expanding for axis/legend labels.
       if (b.y1 < region.y0 || b.y0 > region.y1) {
         const hostLine = lines.find(l => l.items.includes(it));
-        if (hostLine && (parseCaption(hostLine.text) || lineKind(hostLine, body, 2) !== 'p' ||
+        const panel = hostLine && /^\(?[a-h]\)\s*\S/.test(hostLine.text) && hostLine.x1 - hostLine.x0 < (region.x1 - region.x0) * .6;
+        if (hostLine && !panel && (parseCaption(hostLine.text) || lineKind(hostLine, body, 2) !== 'p' ||
             (hostLine.size >= body * .94 && (hostLine.x1 - hostLine.x0 > (col ? (col.x1 - col.x0) * .6 : width * .35) || hostLine.text.length > 50))))
           return false;
       }
@@ -615,6 +651,9 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   const viewport = page.getViewport({ scale: 1 }), W = viewport.width, H = viewport.height;
   const geom = await extractPageRegions(page), content = await page.getTextContent();
   let raw: RawItem[] = [];
+  // OCR is for pages whose native text is broken. Glyphs we deliberately mark unmapped
+  // (U+FFFD for raw CIDs, unknown symbol slots) get a source crop and must not tip the page into OCR.
+  let sourceReplacements = 0;
   for (const item of content.items as any[]) {
     if (typeof item.str !== 'string' || !item.str)
       continue;
@@ -631,6 +670,7 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
     if (vertical && ((box.x0 + box.x1) / 2 < W * .08 || (box.x0 + box.x1) / 2 > W * .92) &&
       (PUBLICATION_NOTICE.test(item.str) || /^\d{8,}[\d():,;\s]*$/.test(item.str.trim())))
       continue;
+    sourceReplacements += (item.str.match(/\uFFFD/g) ?? []).length;
     raw.push({
       str: recoverEncodedGlyphs(item.str, page.commonObjs.has(item.fontName) ? page.commonObjs.get(item.fontName) : undefined),
       x: box.x0,
@@ -644,9 +684,9 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
       font
     });
   }
-  raw = composeDottedEquals(raw);
+  raw = composeEquationNumbers(splitInterleavedMathRuns(composeDottedEquals(raw), font => MATH_FONT.test(font)));
   const nativeText = raw.map(x => x.str).join('');
-  const bad = (nativeText.match(/[\uFFFD\u0000-\u0008]/g) ?? []).length;
+  const bad = (nativeText.match(/[\u0000-\u0008]/g) ?? []).length + sourceReplacements;
   const needsOCR = nativeText.trim().length < 8 || (nativeText.length > 0 && bad / nativeText.length > .03);
   let usedOCR = false;
   if (needsOCR && options.ocrPage) {
@@ -882,8 +922,10 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
     identifyPublicationHeaders(lines, H, pageNumber);
     if (pageNumber === 1) identifyFrontMatter(lines, body, H);
     const ordinary: Line[] = [];
+    // Captions split the stream into short batches; measure leading on the whole stream.
+    const leading = dominantLeading(lines, body);
     const flush = () => {
-      for (const p of paragraphs(ordinary, body, pageNumber, referenceState)) {
+      for (const p of paragraphs(ordinary, body, pageNumber, referenceState, leading)) {
         add(p.kind, p.text, p, { sourceFontSize: p.size, textRuns: p.textRuns, readingRole: p.readingRole });
         const current = placed[placed.length - 1];
         current.column = stream.column;

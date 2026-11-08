@@ -1,6 +1,7 @@
 import type { RawItem } from './analyze';
 
 interface SourceFont {
+  name?: string;
   composite?: boolean;
   differences?: Array<string | undefined>;
   defaultEncoding?: Array<string | undefined>;
@@ -25,6 +26,12 @@ const GLYPHS: Record<string, string> = {
 };
 
 const cffGlyphCache = new WeakMap<object, Map<number, string> | null>();
+// Advent math-symbol fonts (Elsevier AdvP4C4E74, Springer Nature AdvMacMthSyN) lie in their
+// glyph names. Printable slots follow the TeX cmsy layout; only rendering-verified slots map.
+const ADVENT_MATH_SYMBOLS: Record<string, string> = {
+  'ð': '(', 'Þ': ')', '¼': '=', 'þ': '+',
+  '0': '′', '2': '∈', 'f': '{', 'g': '}', 'h': '⟨', 'i': '⟩', 'j': '|', 'k': '‖',
+};
 const injectiveUnicodeCache = new WeakMap<object, Set<string>>();
 
 function extractCffCodepointToGlyphName(data: Uint8Array | undefined): Map<number, string> | null {
@@ -202,6 +209,12 @@ export function hasUnmappedGlyphs(text: string): boolean {
 
 export function recoverEncodedGlyphs(text: string, font: SourceFont | undefined): string {
   if (!font) return text;
+  // Verified against rendered pages (Neurocomputing 545 Eq. 14; Nat. Commun. "X(i) ∈ ℝ^d",
+  // "T ⊂ {0, …}") and the balanced ð/Þ counts across the library. Every other printable
+  // slot is unknown and becomes unmapped, so the reader shows the source crop instead.
+  if (!font.composite && /^(?:[A-Z]{6}\+)?(?:AdvP4C4E74|AdvMacMthSyN)$/.test(font.name ?? '')) {
+    text = text.replace(/[\u0021-\u007E\u0080-\u00FF]/g, character => ADVENT_MATH_SYMBOLS[character] ?? '\uFFFD');
+  }
   let next = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, character => {
     const code = character.charCodeAt(0);
     const fc = font.toFontChar?.[code];
@@ -224,6 +237,22 @@ export function recoverEncodedGlyphs(text: string, font: SourceFont | undefined)
       return resolveGlyphUnicode(name) ?? character;
     });
   }
+  // Composite (CID) fonts without a ToUnicode entry: PDF.js emits the raw CID as the
+  // character, e.g. Word's Cambria Math script-size subscripts become U+0BDC "௜" for i.
+  // The CID→glyph identity carries no Unicode meaning, so mark it unmapped and let the
+  // reader show the source crop instead of a wrong symbol. Real CJK/Latin text is
+  // reached through ToUnicode and is therefore excluded by the mapped-value check.
+  if (font.composite && Array.isArray(font.toUnicode?._map) && Array.isArray(font.toFontChar)) {
+    const mapped = mappedUnicodeChars(font)!;
+    if (mapped.size) {
+      next = next.replace(/[\u0100-\uD7FF\uE000-\uFFFC]/g, character => {
+        const code = character.charCodeAt(0);
+        const hasToUnicode = font.toUnicode?.get ? font.toUnicode.get(code) != null : font.toUnicode!._map![code] !== undefined;
+        if (hasToUnicode || mapped.has(character) || font.toFontChar![code] === undefined) return character;
+        return '\uFFFD';
+      });
+    }
+  }
   return next;
 }
 
@@ -241,4 +270,52 @@ export function composeDottedEquals(items: RawItem[]): RawItem[] {
     removed.add(dot);
   }
   return items.filter(item => !removed.has(item)).map(item => replacements.get(item) ?? item);
+}
+
+/**
+ * Display equation numbers often arrive as several touching runs: Elsevier paints
+ * "(" ")" in a symbol font around "14"; Word exports "(", "4", ".", "1", ")" one glyph
+ * at a time. Rejoin touching runs on one baseline so the number can anchor its equation
+ * like a single "(14)" run does elsewhere.
+ */
+export function composeEquationNumbers(items: RawItem[]): RawItem[] {
+  const touching = (a: RawItem, b: RawItem) => Math.abs(a.y - b.y) <= Math.max(.6, a.h * .08) &&
+    Math.abs(a.h - b.h) <= a.h * .15 && b.x - (a.x + a.w) >= -.6 && b.x - (a.x + a.w) <= a.h * .25;
+  const out: RawItem[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const open = items[i];
+    let end = -1;
+    if (open.str === '(') {
+      for (let j = i + 1; j < Math.min(items.length, i + 8); j++) {
+        if (!touching(items[j - 1], items[j])) break;
+        if (items[j].str === ')') { end = j; break; }
+      }
+    }
+    const run = end > i ? items.slice(i, end + 1) : [];
+    const text = run.map(item => item.str).join('');
+    if (run.length >= 3 && /^\(\d{1,3}(?:[.\-–]\d{1,3})?[a-z]?\)$/i.test(text)) {
+      const digits = run[1], close = run[run.length - 1];
+      out.push({ ...digits, str: text, x: open.x, w: close.x + close.w - open.x,
+        top: Math.min(...run.map(item => item.top ?? item.y)), bottom: Math.max(...run.map(item => item.bottom ?? item.y)) });
+      i = end;
+    } else out.push(open);
+  }
+  return out;
+}
+
+/**
+ * MathType paints "( )" as one run and the argument "t" as a separate run inside the
+ * blank, so x-ordering yields "u( )t". Split a short spaced math-font run into glyph
+ * runs when another run on its baseline sits inside one of its blanks.
+ */
+export function splitInterleavedMathRuns(items: RawItem[], isMathFont: (font: string) => boolean): RawItem[] {
+  return items.flatMap(item => {
+    const text = item.str;
+    if (!isMathFont(item.font) || text.length > 8 || !/^\S+(?:\s+\S+)+$/.test(text) || item.w <= 0) return [item];
+    const step = item.w / text.length;
+    const inside = items.some(other => other !== item && other.str.trim() && Math.abs(other.y - item.y) <= item.h * .35 &&
+      [...text].some((ch, index) => ch === ' ' && other.x + other.w / 2 > item.x + step * index && other.x + other.w / 2 < item.x + step * (index + 1)));
+    if (!inside) return [item];
+    return [...text].flatMap((ch, index) => ch === ' ' ? [] : [{ ...item, str: ch, x: item.x + step * index, w: step }]);
+  });
 }

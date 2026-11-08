@@ -96,6 +96,43 @@ export function identifyRepeatedPublicationHeaders(blocks: Block[], pageHeights:
     const key = block.text.replace(/\d+/g, '#').replace(/\s+/g, ' ').trim();
     if (repeated.get(key)!.size >= Math.max(2, Math.ceil(pageHeights.size * .4))) block.readingRole = 'publication';
   }
+  identifyRepeatedMarginLines(blocks, pageHeights);
+}
+
+/**
+ * Theses and Chinese journals put running heads ("XX大学硕士学位论文", "第 2 章 …") and
+ * page numbers ("- 11 -") well inside the physical margin band above, and the uppercase
+ * filter there never admits CJK. Evidence here is narrower than mere repetition (which
+ * must not hide a recurring Latin body line or footnote): a bare page-number pattern, or
+ * a short CJK line without sentence-final punctuation, in the same slot on ≥3 pages.
+ */
+function identifyRepeatedMarginLines(blocks: Block[], pageHeights: ReadonlyMap<number, number>): void {
+  const groups = new Map<string, Block[]>();
+  for (const block of blocks) {
+    const height = pageHeights.get(block.page);
+    if (!height || !block.bbox || block.readingRole || !['p', 'li', 'h2', 'h3'].includes(block.kind)) continue;
+    const [, y0, , y1] = block.bbox;
+    const text = block.text.replace(/\s+/g, ' ').trim();
+    if (!text || text.length > 60 || y1 - y0 > (block.sourceFontSize ?? 10) * 2.2) continue;
+    if (!(y1 < height * .13 || y0 > height * .87)) continue;
+    const pageNumber = /^[-–—\s]*(?:page\s*)?\d{1,4}(?:\s*(?:\/|of)\s*\d{1,4})?[-–—\s]*$|^第\s*\d{1,4}\s*页$/i.test(text);
+    const cjkHead = /[\u3400-\u9fff]/.test(text) && !/[。．！？；.!?;，,]$/.test(text);
+    if (!pageNumber && !cjkHead) continue;
+    const band = y1 < height * .13 ? 'top' : 'bottom';
+    const key = `${band}|${pageNumber ? '#page' : text.replace(/\d+/g, '#')}`;
+    const list = groups.get(key) ?? [];
+    list.push(block); groups.set(key, list);
+  }
+  for (const list of groups.values()) {
+    const pages = new Set(list.map(block => block.page));
+    if (pages.size < 3) continue;
+    // Same physical slot: the median top edge, within a small tolerance.
+    const tops = list.map(block => block.bbox![1]).sort((a, b) => a - b);
+    const median = tops[Math.floor(tops.length / 2)];
+    const aligned = list.filter(block => Math.abs(block.bbox![1] - median) <= 4);
+    if (new Set(aligned.map(block => block.page)).size < 3) continue;
+    for (const block of aligned) block.readingRole = 'publication';
+  }
 }
 
 /** Bounded to the first page's opening typography; ordinary body prose never becomes metadata. */

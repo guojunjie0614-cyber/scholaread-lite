@@ -21,7 +21,7 @@ try {
   }
   const { isReadingContent, isTranslatableContent } = modules.reading;
   const { classifyReadingRoles } = modules.roles;
-  const { recoverEncodedGlyphs, hasUnmappedGlyphs, composeDottedEquals } = modules.glyph;
+  const { recoverEncodedGlyphs, hasUnmappedGlyphs, composeDottedEquals, composeEquationNumbers } = modules.glyph;
   const block = (text, extra = {}) => ({ id: 'b', paperId: 'p', page: 1, ord: 0, kind: 'p', text, ...extra });
   const sourceBlocks = [
     block('Alice Wang, Bob Chen', { readingRole: 'authors' }),
@@ -103,6 +103,24 @@ try {
     toUnicode: { _map: Object.assign([], { 99: '1' }) },
   };
   assert.equal(recoverEncodedGlyphs('1', collidingFont), '1', 'never overwrite a character produced by another mapped glyph');
+  // Word/Cambria Math: a CID without ToUnicode surfaces as its raw value (U+0BDC for subscript i).
+  const cambriaMath = {
+    composite: true,
+    toFontChar: Object.assign([], { 0xbdc: 0xe059, 0xbe1: 0xe05e, 150: 0xe001, 2000: 0xe100 }),
+    toUnicode: { _map: Object.assign([], { 150: 't', 2000: '𝑊', 3000: '储' }) },
+  };
+  assert.equal(recoverEncodedGlyphs('𝑊௜௡', cambriaMath), '𝑊\uFFFD\uFFFD', 'raw CIDs are unmapped, not Tamil text');
+  assert(hasUnmappedGlyphs(recoverEncodedGlyphs('𝑊௜௡', cambriaMath)));
+  assert.equal(recoverEncodedGlyphs('储备池 t', cambriaMath), '储备池 t', 'ToUnicode-mapped CJK and Latin are untouched');
+  assert.equal(recoverEncodedGlyphs('ð þ Þ ¼ ½ 2 k F', { name: 'AGCBMJ+AdvP4C4E74', composite: false }), '( + ) = \uFFFD ∈ ‖ \uFFFD',
+    'Advent math-symbol slots verified on rendered pages recover; every other slot stays unmapped');
+  assert.equal(recoverEncodedGlyphs('h ð i Þ f g', { name: 'FDNJJO+AdvMacMthSyN', composite: false }), '⟨ ( ⟩ ) { }');
+  assert.equal(recoverEncodedGlyphs('ð', { name: 'AdvOT1ef757c0', composite: false }), 'ð', 'text fonts keep their real eth');
+  const run = (str, x, w, font = 'AdvGulliv-R') => ({ str, x, y: 643.7, w, h: 8.4, bold: false, font });
+  assert.deepEqual(composeEquationNumbers([run('b', 74, 4), run('(', 272.5, 3.2, 'AdvP4C4E74'), run('17', 275.7, 9.7), run(')', 285.4, 3.3, 'AdvP4C4E74')])
+    .map(item => item.str), ['b', '(17)']);
+  assert.deepEqual(composeEquationNumbers([run('(', 100, 3), run('17', 140, 9), run(')', 150, 3)]).map(item => item.str), ['(', '17', ')'],
+    'separated parentheses are not an equation number');
   assert(hasUnmappedGlyphs('\u0004'));
   const equals = { str: '=', x: 20, y: 100, w: 8, h: 10, bold: false, font: 'MTSYN' };
   const dot = { ...equals, str: '.', x: 22.5, y: 94.3, w: 3, font: 'RMTMI' };

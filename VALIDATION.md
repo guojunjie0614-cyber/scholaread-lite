@@ -229,3 +229,20 @@
 - 翻译与数学结构回归：`node tests/translation-spatial.mjs`、`node tests/chinese-reflow.mjs`、`node tests/translation-backend.mjs`、`node tests/translation-ipc.mjs`、`node tests/translation-protection.mjs`、`node tests/translation-script-cache.mjs`、`node tests/magpie-regression.mjs` 全部通过。
 - 详细诊断与交付记录见 [`docs/research/pdf-reflow-fix-2026-10-30.md`](docs/research/pdf-reflow-fix-2026-10-30.md) 与 [`docs/research/translation-fix-2026-10-30.md`](docs/research/translation-fix-2026-10-30.md)。
 
+
+
+## 2026-11-08 重排引擎 v29–v30：真实论文固定验收集与非 IEEE 版式
+
+### 修复（Engine v29 → v30）
+
+- **矢量密集页不再导致整篇失败**：`unionRects` 改为循环求包围盒，聚类并查集改为迭代路径压缩并按网格单元合并；《改进的回声状态网络…》第 95 页（254 009 个绘图对象）不再 `Maximum call stack size exceeded`，该页区域提取 9.2 s → 0.26 s；195 页真实样本新旧区域输出逐字节一致。
+- **章节编号图表与学位论文页眉页码**：图注支持 `图 2-1`／`Table 3–2`，公式编号支持 `(4.1)`／`(2-1)`；中文页眉（`XX大学硕士学位论文`、`第 N 章 …`）与 `- N -` 页码在同一位置重复 ≥3 页时归为出版附属内容；正文段落按页面主导行距合并（1.5–2 倍行距不再一行一段）。
+- **不确定字形不再冒充文字**：复合字体中没有 ToUnicode 的 CID（Word/Cambria Math 下标 `𝑊௜௡`）标记为未映射并显示原稿裁片；Elsevier `AdvP4C4E74` 与 Springer Nature `AdvMacMthSyN` 只恢复经渲染核对的槽位（`ð Þ ¼ þ` → `( ) = +`，`0 2 f g h i j k` → `′ ∈ { } ⟨ ⟩ | ‖`），其余槽位一律显示原稿；这些标记不计入整页 OCR 回退阈值（OCR 页集合与 v29 相同）。
+- **公式与图版**：拆成多段的公式编号（`(`/`14`/`)`）重新合并后可锚定行间公式；Elsevier 图文共用背景框时，框内下半部的真实图注截断图版；跨伪栏的图注可合并 3×2 子图网格并收入 `a)…f)` 分图标签；MathType `( )t` 交错字形按位置还原为 `(t)`。
+
+### 有效检查与证据
+
+- `node tests/corpus-acceptance.mjs`：11 篇真实论文（dev 4 / holdout 4 / regression 3）全部通过，已知缺口逐条写在 `tests/fixtures/corpus-acceptance.json`。
+- 另抽 21 篇未参与调参的书库论文对比 v29：1 篇由整篇失败变为可解析；2 篇 Elsevier 图注由缺失变为识别并绑定；1 篇（PMF-FFT 改进算法）6 条行间公式由乱序文字变为原稿裁片，其中 2 个公式图片的编号 `(8)`/`(9)` 不再被半截裁进图片而改为文字；其余指标不变。先前打开过的 9 篇指标不变。
+- 全部既有回归脚本通过（`reader-position.mjs` 为既有的测试环境问题：临时目录无法解析 `react`，与本轮修改无关）。
+- 仍未解决：MathType/Euclid Symbol 运算符在文字层中不存在（如 `当 j 1 时` 缺 `>`），文字层无法检测；Elsevier 混合大小写作者页眉仍显示为正文。

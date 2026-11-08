@@ -26,7 +26,8 @@ export interface EqRegion {
   structureWarnings?: string[];
 }
 
-const NUMBER = /^\(\s*\d{1,3}[a-z]?\s*\)$/i;
+// Theses and books number by chapter: (4.1), (2-1).
+const NUMBER = /^\(\s*\d{1,3}(?:[.\-–]\d{1,3})?[a-z]?\s*\)$/i;
 interface Row {
   items: MathItem[];
   y: number;
@@ -59,8 +60,10 @@ function rowsOf(items: MathItem[], body: number): Row[] {
     // are ordinary Roman fonts inside perfectly valid formulae.
     const plain = ink.filter(x => !MATH_FONT.test(x.font) && x.h >= body * .85).map(x => x.str).join(' ');
     const words = plain.match(/[A-Za-z]{2,}/g) ?? [];
+    // Chinese prose has no Latin words; a run of Han characters is equally decisive.
+    const han = (plain.match(/[\u3400-\u9fff]/g) ?? []).length;
     row.prose = (words.length >= 2 && row.ratio < .55) ||
-      (/^(where|with|for|and|thus|here|using|let)\b/i.test(plain.trim()) && row.ratio < .6) || words.length >= 4;
+      (/^(where|with|for|and|thus|here|using|let)\b/i.test(plain.trim()) && row.ratio < .6) || words.length >= 4 || han >= 6;
   }
   assignScriptProse(rows, body);
   return rows;
@@ -112,8 +115,20 @@ export function extractMathRegions(items: MathItem[], body: number, pageWidth: n
   for (const [column, col] of cols.entries()) {
     const own = eligible.filter(it => owner.get(it) === column);
     const rows = rowsOf(own, body);
-    const anchors = own.filter(it => NUMBER.test(it.str.trim()) &&
-      Math.abs(it.x + it.w - col.x1) < Math.max(9, body) && it.h > body * .75);
+    // A display number normally ends at the column edge. When the gutter is not detected
+    // (e.g. the other column is one tall figure) accept a number that ends its own
+    // relation row after a wide blank run instead.
+    const spacedRowEnd = (it: MathItem) => rows.some(row => {
+      const ink = row.items.filter(other => other.str.trim());
+      const index = ink.indexOf(it);
+      return index > 0 && index === ink.length - 1 && /[=∈<>≤≥≈]/.test(row.text) &&
+        it.x - Math.max(...ink.slice(0, index).map(other => other.x + other.w)) >= body * 4;
+    });
+    // Figure labels can widen the measured column; justified prose marks the real right margin.
+    const proseRights = rows.filter(row => row.prose && row.x1 - row.x0 > (col.x1 - col.x0) * .5).map(row => row.x1).sort((a, b) => a - b);
+    const textRight = proseRights.length >= 3 ? proseRights[Math.floor(proseRights.length / 2)] : col.x1;
+    const anchors = own.filter(it => NUMBER.test(it.str.trim()) && it.h > body * .75 &&
+      (Math.abs(it.x + it.w - col.x1) < Math.max(9, body) || Math.abs(it.x + it.w - textRight) < Math.max(9, body) || spacedRowEnd(it)));
     for (const row of rows) {
       if (row.items.some(it => anchors.includes(it)) && /[=∈<>≤≥≈]/.test(row.text)) row.prose = false;
     }
@@ -129,8 +144,15 @@ export function extractMathRegions(items: MathItem[], body: number, pageWidth: n
     assignScriptProse(rows, body);
     proseRows.push(...rows.filter(row => row.prose));
     const groups: Row[][] = [];
+    // A lone "(4.2)" beside an equation pasted as a picture numbers that picture; joining it
+    // to the formula above would duplicate part of the picture in a second crop.
+    const pictureNumber = (row: Row) => {
+      const ink = row.items.filter(it => it.str.trim());
+      return ink.length > 0 && ink.every(it => NUMBER.test(it.str.trim())) &&
+        obstacles.some(r => r.y0 <= row.y && r.y1 >= row.y && r.x1 <= ink[0].x + 1);
+    };
     for (const row of rows) {
-      if (row.prose || !row.items.some(it => it.str.trim())) continue;
+      if (row.prose || !row.items.some(it => it.str.trim()) || pictureNumber(row)) continue;
       const previous = groups.at(-1)?.at(-1);
       const previousIndex = previous ? rows.indexOf(previous) : -2;
       const weakNumber = (r: Row) => /^\d{1,4}$/.test(r.text) && r.ratio < .2;

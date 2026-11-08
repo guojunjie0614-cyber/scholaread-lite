@@ -81,6 +81,15 @@ try {
   assert(splitBanner[1].readingRole === 'publication' && !isReadingContent(splitBanner[1]));
   assert(isReadingContent(splitBanner[2]), 'a body DOI citation remains readable');
   assert(splitBanner[3].readingRole === 'publication' && !isReadingContent(splitBanner[3]));
+  // Thesis furniture sits inside the 6.5%/95% band: CJK running heads and "- N -" page numbers.
+  const thesis = [20, 21, 22, 23, 24, 25].flatMap(page => [
+    block(page % 2 ? '黑龙江大学硕士学位论文' : '第 2 章 储备池计算以及忆阻器的理论基础', { page, bbox: [200, 87, 395, 97], sourceFontSize: 9 }),
+    block('储备池内的神经元通过连接结构相互作用。', { page, bbox: [85, 87, 510, 97], sourceFontSize: 12 }),
+    block(`- ${page - 9} -`, { page, kind: 'li', bbox: [286, 753, 309, 764], sourceFontSize: 9 }),
+    block('注：本章实验均在相同条件下完成', { page: page === 20 ? 20 : 99, bbox: [85, 740, 400, 750] })]);
+  identifyRepeatedPublicationHeaders(thesis, new Map([20, 21, 22, 23, 24, 25, 99].map(page => [page, 842])));
+  assert(thesis.filter(b => /学位论文|^第 2 章|^- \d+ -$/.test(b.text)).every(b => b.readingRole === 'publication'));
+  assert(thesis.filter(b => /神经元|注：/.test(b.text)).every(isReadingContent), 'CJK sentences and one-off notes stay readable');
 
   const portrait = { kind: 'image', x0: 40, y0: 100, x1: 112, y1: 190 };
   const bioLines = [{ text: authors[6].text, x0: 130, y0: 102, x1: 295, y1: 112 }];

@@ -24,7 +24,7 @@ ScholarLite 采用 **Electron 主进程 + 沙箱化 React 渲染进程 + 共享�
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ Renderer (React 19 + PDF.js + KaTeX + OpenUI)                           │
 │  ├─ Library / LibraryHome      文献库、多级分类树、筛选排序、外部库导入 │
-│  ├─ reflow/ (Engine v28)       PDF 区域几何、公式组归属、行内二维数学、 │
+│  ├─ reflow/ (Engine v30)       PDF 区域几何、公式组归属、行内二维数学、 │
 │  │                             算法块、图版与图注绑定、作者/页眉过滤    │
 │  ├─ Reader / FigureBlock /     重排阅读、原页模式、按需高清裁图、       │
 │  │  MathBlock / InlineText     公式 LaTeX 校对、流式中文原位替换        │
@@ -47,9 +47,11 @@ ScholarLite 采用 **Electron 主进程 + 沙箱化 React 渲染进程 + 共享�
 
 ### 关键不变量与工程约束
 
-1. **版面重排质量门（`REFLOW_ENGINE_VERSION = 28`）**：
+1. **版面重排质量门（`REFLOW_ENGINE_VERSION = 30`）**：
    - 公式与算法区域先于普通段落确定唯一字形归属，裁剪框必须为页内有限正面积矩形（[`shared/reflow-validation.ts`](../shared/reflow-validation.ts)）。
    - 行内复杂上下标、嵌套下标、圈号与积分上下限通过 `mathPosition` 保留二维几何相对位置，同时维持 `Block.text` 的规范字符顺序与笔记高亮偏移一致（[`renderer/src/reflow/inline-text.ts`](../renderer/src/reflow/inline-text.ts)）。
+   - 无法确定 Unicode 的字形（CID 直出、Advent 数学符号字体中未经渲染核对的槽位）标记为 U+FFFD，阅读器改显原页裁图而不是猜测字符；这类标记不计入整页 OCR 回退阈值。
+   - 真实论文固定验收集 [`tests/corpus-acceptance.mjs`](../tests/corpus-acceptance.mjs) 区分 dev（修复时使用）、holdout（只验证不调参）与 regression（历史调参样本），已知缺口在 fixture 中逐条记录原因。
    - 整篇解析全部通过校验后才在 SQLite 事务内更新块缓存并执行笔记唯一重锚定（[`electron/reanchor.ts`](../electron/reanchor.ts)），已人工确认的公式排版在重新解析时保留。
 2. **流式翻译与数学保护**：
    - 发送前将科学上下标、内联变量与连续二维数学空间组编码为受保护占位符（[`shared/translation-scripts.ts`](../shared/translation-scripts.ts)）；返回后逐段校验占位符完整性与顺序，完整还原 `TextRun` 的 `mathPosition` 与字形样式后才写入缓存并更新界面。

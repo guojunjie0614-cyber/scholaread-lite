@@ -76,7 +76,7 @@ npm run app:mac  # 创建本机 macOS 应用入口：release/ScholarLite.app
 
 ## 重排、OCR 与公式
 
-打开文献后，阅读器优先读取 PDF 原生文字层，并按区域恢复阅读顺序（当前引擎版本 `REFLOW_ENGINE_VERSION = 28`）。算法版本变化时会重新解析；整篇处理成功且裁剪区域正面积、文字偏移与空间组连续性检查通过后才替换缓存，失败保留上一版。笔记按原文重新定位，不能唯一定位的笔记保留摘录与页码，避免误高亮另一段。
+打开文献后，阅读器优先读取 PDF 原生文字层，并按区域恢复阅读顺序（当前引擎版本 `REFLOW_ENGINE_VERSION = 30`）。算法版本变化时会重新解析；整篇处理成功且裁剪区域正面积、文字偏移与空间组连续性检查通过后才替换缓存，失败保留上一版。笔记按原文重新定位，不能唯一定位的笔记保留摘录与页码，避免误高亮另一段。
 
 - **分栏与阅读顺序**：文字、绘图与裁图使用同一页内坐标系；双栏文字合行时隔离左右栏，按通栏区域划分阅读顺序，浮动图表与运行页眉不会打断未完句子。
 - **图表与复合图版**：图表作为完整区域提取，图内文字不重复进入正文；表格保留完整原稿截图（覆盖末行与底线），表格下的说明独立归为表注并绑定所属表格。矢量图和位图在排序前绑定图注；集中图版保留独立位图边界，识别 `Figure 14.5.1:` 等复合编号，同排按从左至右排列。
@@ -182,7 +182,7 @@ electron/                        Electron 主进程（Node ≥ 22）
   chat/                          本机 Agent AI 对话后端（service / store / catalog / codex / claude / agy 等）
 renderer/src/                    React 19 渲染进程
   App.tsx                        顶层状态、文献切换、面板布局与全局快捷键
-  reflow/                        PDF 版面重排引擎（v28）
+  reflow/                        PDF 版面重排引擎（v30）
     analyze.ts                   页面解析主流程、分栏、段落合并与阅读顺序
     regions.ts                   PDF 字形、绘图与图像几何提取及坐标变换
     math.ts                      行间公式组识别、唯一字形归属与正面积裁剪框生成
@@ -239,6 +239,8 @@ node tests/algorithm-portraits.mjs
 node tests/source-text-fallback.mjs
 node tests/crop-regression.mjs
 node tests/reader-position.mjs
+# 真实论文固定验收集（PDF 取自本机书库，缺失时 SKIP；dev/holdout/regression 分组见 fixture）
+node tests/corpus-acceptance.mjs
 
 # 3. 流式翻译、并发调度与二维数学空间结构保护
 node tests/translation-spatial.mjs
