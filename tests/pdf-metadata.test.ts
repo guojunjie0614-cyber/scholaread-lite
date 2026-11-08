@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { inferPdfMetadata, type PdfMetadataSource } from '../electron/pdf-metadata.js';
-import { canonicalVenue, displayVenue } from '../shared/venue.js';
+import { canonicalVenue, displayVenue, venueSearchText } from '../shared/venue.js';
 import { createMetadataBackfill } from '../electron/metadata-backfill.js';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -22,7 +22,8 @@ test('printed issue year wins over online-first, copyright and DOI years', () =>
   }));
   assert.equal(metadata.year, 2026);
   assert.equal(metadata.doi, '10.1109/TCAD.2025.3580335');
-  assert.equal(displayVenue(metadata.venue), 'TCAD');
+  assert.equal(displayVenue(metadata.venue), 'IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems');
+  assert.ok(venueSearchText(metadata.venue).includes('TCAD'));
 });
 
 test('structured publisher metadata works without selectable header text', () => {
@@ -47,7 +48,8 @@ test('references, funding numbers, DOI years and creation dates cannot date an u
   }));
   assert.equal(metadata.year, null);
   assert.equal(metadata.venue, 'IEEE Internet of Things Journal');
-  assert.equal(displayVenue(metadata.venue), 'IoT J.');
+  assert.equal(displayVenue(metadata.venue), 'IEEE Internet of Things Journal');
+  assert.ok(venueSearchText(metadata.venue).includes('IoTJ'));
 });
 
 test('explicit publication and publisher copyright dates are available as fallbacks', () => {
@@ -66,9 +68,10 @@ test('extracts the embedded title and authors for new imports', () => {
 });
 
 test('conference headers and structured descriptions identify venues without guessing from titles', () => {
-  assert.equal(displayVenue(inferPdfMetadata(source({ headers: ['ISSCC 2025 / SESSION 14 / COMPUTE-IN-MEMORY / 14.5'] })).venue), 'ISSCC');
+  assert.equal(displayVenue(inferPdfMetadata(source({ headers: ['ISSCC 2025 / SESSION 14 / COMPUTE-IN-MEMORY / 14.5'] })).venue),
+    'IEEE International Solid-State Circuits Conference (ISSCC)');
   assert.equal(inferPdfMetadata(source({ info: { Subject: '2025 IEEE International Solid-State Circuits Conference (ISSCC);2025;68; ;10.1109/example' } })).venue,
-    'IEEE International Solid-State Circuits Conference');
+    'IEEE International Solid-State Circuits Conference (ISSCC)');
   assert.equal(inferPdfMetadata(source({ info: { Title: 'IoTJ Manuscript' }, firstPage: ['[1] IEEE Internet of Things Journal, 2025.'] })).venue, undefined);
   assert.equal(inferPdfMetadata(source({ headers: ['DUAN et al.: A JOURNAL ARTICLE TITLE 247'] })).venue, undefined);
   assert.equal(inferPdfMetadata(source({ headers: ['IEEE TRANSACTIONS ON'] })).venue, undefined);
@@ -77,11 +80,15 @@ test('conference headers and structured descriptions identify venues without gue
 test('journal header strips page and issue information while unknown names remain intact', () => {
   assert.equal(inferPdfMetadata(source({ headers: ['246 IEEE TRANSACTIONS ON COMPUTER-AIDED DESIGN OF INTEGRATED CIRCUITS AND SYSTEMS, VOL. 45, NO. 1, JANUARY 2026'] })).venue,
     'IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems');
-  assert.equal(displayVenue('2025 IEEE International Solid-State Circuits Conference (ISSCC)'), 'ISSCC');
-  assert.equal(displayVenue('IEEE Trans. Comput.-Aided Des. Integr. Circuits Syst.'), 'TCAD');
+  assert.equal(displayVenue('2025 IEEE International Solid-State Circuits Conference (ISSCC)'), 'IEEE International Solid-State Circuits Conference (ISSCC)');
+  assert.equal(displayVenue('IEEE Trans. Comput.-Aided Des. Integr. Circuits Syst.'), 'IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems');
+  assert.equal(displayVenue('2024 Design, Automation &amp; Test in Europe Conference &amp; Exhibition (DATE)'), 'Design, Automation & Test in Europe Conference & Exhibition (DATE)');
+  assert.equal(displayVenue('2018 IEEE International Solid - State Circuits Conference - (ISSCC)'), 'IEEE International Solid-State Circuits Conference (ISSCC)');
+  assert.equal(displayVenue('Sensors (Basel, Switzerland)'), 'Sensors');
   assert.equal(displayVenue('An Unfamiliar Scientific Journal'), 'An Unfamiliar Scientific Journal');
   assert.equal(displayVenue(null), '');
   assert.equal(canonicalVenue('IoTJ'), 'IEEE Internet of Things Journal');
+  assert.ok(venueSearchText('IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems').toLowerCase().includes('tcad'));
 });
 
 async function backfillFixture(ids: string[]) {

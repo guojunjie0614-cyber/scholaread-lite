@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Collection, Paper, ReadingStatus } from '@shared/types';
-import { displayVenue } from '@shared/venue';
+import { displayVenue, venueSearchText } from '@shared/venue';
 import { IconBook, IconChevronDown, IconFolder, IconMore, IconPlus, IconSearch } from './icons';
 import { Modal } from './Modal';
 import DesktopMenu from './DesktopMenu';
@@ -100,8 +100,7 @@ export function LibraryHome({
               p.title,
               ...p.authors,
               p.year ?? '',
-              p.venue ?? '',
-              displayVenue(p.venue),
+              venueSearchText(p.venue),
               p.doi ?? '',
               ...p.tags,
               ...p.collectionIds.map((id) => collectionLabel(id, collections)),
