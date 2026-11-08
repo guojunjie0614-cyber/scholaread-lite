@@ -558,6 +558,41 @@ try {
     const broken = { ...good, getTextContent: async () => { throw new Error('broken content'); } };
     await assert.rejects(analyzeDocument({ numPages: 2, getPage: async p => p === 1 ? good : broken }, 'test', { keepFigures: true }), /第 2 页解析失败/);
   });
+  await check('wrapped prose mention of Fig. N. or Chinese 图 N at line start stays in its paragraph', async () => {
+    const blocks = await analyzePage(page([
+      item('Signal acquisition is a 2-D searching process for the PN code phase, as shown in', 312, 640, 250, 10),
+      item('Fig. 3. The PN code phase shift represents the time delay between the transmitted', 312, 652, 250, 10),
+      item('and the received PN code, which ranges from 0 chip to 1022 chips.', 312, 664, 240, 10),
+      item('图 2 说明了该架构在不同信噪比条件下的捕获概率与传统方法对比。', 312, 700, 250, 10),
+    ]), 2, 'wrapped-fig-mention', { keepFigures: true });
+    assert.equal(blocks.filter(b => b.kind === 'caption').length, 0);
+    assert(blocks.some(b => b.kind === 'p' && b.text.includes('as shown in Fig. 3. The PN code phase shift')));
+    assert(blocks.some(b => b.kind === 'p' && b.text.includes('图 2 说明了')));
+  });
+  await check('centered two-line TABLE heading across gutter stays intact and avoids duplicate figure/table', async () => {
+    const items = [
+      item('TABLE I', 289, 178, 32, 8),
+      item('COMPARISON OF APPROXIMATE F', 189, 190, 115, 8),
+      item('OURIER TRANSFORM PROCESSORS', 304.8, 190, 118, 8),
+      item('Metric   Design A   Design B', 80, 215, 420, 8),
+    ];
+    for (let i = 0; i < 8; i++) {
+      items.push(item(`Left column prose line ${i} below table.`, 49, 360 + i * 16, 250, 10));
+      items.push(item(`Right column prose line ${i} below table.`, 312, 360 + i * 16, 250, 10));
+    }
+    const blocks = await analyzePage(page(items, [
+      [62, 204, 550, 204],
+      [62, 224, 550, 224],
+      [62, 313, 550, 313],
+      [62, 316, 470, 322],
+    ]), 12, 'split-table-title', { keepFigures: true });
+    const captions = blocks.filter(b => b.kind === 'caption');
+    assert.equal(captions.length, 1);
+    assert.match(captions[0].text, /^TABLE I COMPARISON OF APPROXIMATE F\s?OURIER TRANSFORM PROCESSORS$/);
+    assert.equal(blocks.filter(b => b.kind === 'table').length, 1);
+    assert.equal(blocks.filter(b => b.kind === 'figure').length, 0);
+    assert(blocks.find(b => b.kind === 'table').crop[3] >= 322);
+  });
   console.log(`${count} reflow regression checks passed.`);
 } finally {
   await fs.rm(tmp, { recursive: true, force: true });

@@ -1,4 +1,4 @@
-import { parseCaption } from './captions';
+import { parseCaption, isProseCaptionReference, isWrappedProseMention } from './captions';
 import { unionRects, type Drawing, type PageRegion, type Rect } from './regions';
 import type { RawItem } from './analyze';
 import type { TextRun } from '@shared/types';
@@ -50,10 +50,14 @@ export function matchFigurePlates<T extends CaptionLine>(
   const plates: FigurePlate[] = [];
   for (const line of lines) {
     const label = parseCaption(line.text);
-    if (claimedLines.has(line) || label?.kind !== 'figure') continue;
+    if (claimedLines.has(line) || label?.kind !== 'figure' || isProseCaptionReference(label)) continue;
     // An explicit delimiter or an isolated label distinguishes captions from prose
     // such as “Figure 2 illustrates ...”, even when the page's dominant font is small.
     if (!label.hasDelimiter && label.text) continue;
+    const prevInCol = lines
+      .filter(candidate => candidate.y < line.y && overlapWidth(candidate, line) > Math.min(candidate.x1 - candidate.x0, line.x1 - line.x0) * .5)
+      .sort((a, b) => b.y - a.y)[0];
+    if (isWrappedProseMention(prevInCol, line)) continue;
     const candidates = images.filter(image => !used.has(image)).map(image => ({
       image,
       gap: line.y0 - image.y1,
@@ -73,11 +77,16 @@ export function matchFigurePlates<T extends CaptionLine>(
     // than clipping continuation lines to the bitmap's narrower bounds.
     const captionLeft = Math.min(line.x0, best.image.x0) - line.size * 1.5;
     const captionRight = Math.max(line.x1, best.image.x1) + line.size * 1.5;
+    const rightEdge = Math.max(line.x1, best.image.x1);
     let previous = line;
     for (const next of lines.filter(candidate => candidate.y > line.y).sort((a, b) => a.y - b.y)) {
       if (next.x1 < line.x0 || next.x0 > line.x1) continue;
+      const prevEndedSentence = /[.!?。！？]$/.test(previous.text.trim());
+      const shortEnd = prevEndedSentence && previous.x1 < rightEdge - line.size * 3;
+      const indentedNewPara = prevEndedSentence && next.x0 - line.x0 > line.size * .8;
       if (next.y - previous.y > line.size * 1.8 || Math.abs(next.size - line.size) > 1 ||
-          next.x0 < captionLeft || next.x1 > captionRight || parseCaption(next.text) || !isProse(next)) break;
+          next.x0 < captionLeft || next.x1 > captionRight || shortEnd || indentedNewPara ||
+          parseCaption(next.text) || !isProse(next)) break;
       parts.push(next);
       previous = next;
     }

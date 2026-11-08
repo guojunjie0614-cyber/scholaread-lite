@@ -4,7 +4,7 @@ import { extractPageRegions, multiplyMatrices, transformRect, unionRects, type R
 import { extractMathRegions } from './math';
 import { MATH_EXTENSION_FONT } from './math-fonts';
 import { extractTableNotes } from './table-notes';
-import { parseCaption } from './captions';
+import { parseCaption, isProseCaptionReference, isWrappedProseMention } from './captions';
 import { matchFigurePlates, groupFigurePlateRows } from './figure-plates';
 import { identifyAlgorithms, identifyCodeFigures } from './algorithms';
 import { identifyAuthorPortraits } from './portraits';
@@ -14,7 +14,7 @@ import { classifyReadingRoles } from './reading-roles';
 import { classifyReferences, endsReferenceSection, isBibliographicLine, isBibliographicEntryStart } from './references';
 import { isReferenceHeading } from '@shared/reading-content';
 import { composeDottedEquals, hasUnmappedGlyphs, recoverEncodedGlyphs } from './glyph-recovery';
-export const REFLOW_ENGINE_VERSION = 28;
+export const REFLOW_ENGINE_VERSION = 29;
 
 /** Running headers and floating figures must not interrupt an unfinished sentence. */
 export function orderFloatingContent<T extends Pick<Block, 'kind' | 'text' | 'readingRole'>>(blocks: T[]): T[] {
@@ -91,7 +91,7 @@ const PUBLICATION_NOTICE = /©\s*\d{4}|\bcopyright\b|\bauthorized licensed use\b
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
 const bounds = (it: RawItem): Rect => ({ x0: it.x, y0: it.top ?? it.y - it.h * .82, x1: it.x + it.w, y1: it.bottom ?? it.y + it.h * .22 });
 const centerInside = (it: RawItem, r: Rect) => { const b = bounds(it), x = (b.x0 + b.x1) / 2, y = (b.y0 + b.y1) / 2; return x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1; };
-const xOverlap = (a: Rect, b: Rect) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0));
+const xOverlap = (a: Pick<Rect, 'x0' | 'x1'>, b: Pick<Rect, 'x0' | 'x1'>) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0));
 function bodySize(items: RawItem[]): number {
   const hist = new Map<number, number>();
   for (const it of items) {
@@ -366,40 +366,198 @@ function paragraphs(lines: Line[], body: number, page: number, referenceState = 
   return out;
 }
 
-function identifyTables(lines: Line[], drawings: Drawing[], cols: Column[], height: number): PageRegion[] {
+function prevInColumn(lines: Line[], index: number): Line | undefined {
+  const target = lines[index];
+  for (let k = index - 1; k >= 0; k--) {
+    const candidate = lines[k];
+    if (xOverlap(candidate, target) > Math.min(candidate.x1 - candidate.x0, target.x1 - target.x0) * .35 ||
+        Math.abs((candidate.x0 + candidate.x1) / 2 - (target.x0 + target.x1) / 2) <= target.size * 6) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function canContinueCaption(
+  first: Line,
+  last: Line,
+  next: Line,
+  body: number,
+  pageNumber: number,
+  rightLimit?: number,
+): boolean {
+  if (parseCaption(next.text) || lineKind(next, body, pageNumber) !== 'p') return false;
+  if (next.y - last.y <= first.size * .2 || next.y - last.y > Math.max(first.size * 1.75, body * 1.5)) return false;
+  if (Math.abs(next.size - first.size) > 1.2) return false;
+  const label = parseCaption(first.text);
+  const shortTableHead = label?.kind === 'table' && first.x1 - first.x0 < body * 14;
+  const centered = Math.abs((next.x0 + next.x1) / 2 - (first.x0 + first.x1) / 2) <= body * 3 &&
+    (shortTableHead || (next.x0 >= first.x0 - body * 1.5 && next.x1 <= first.x1 + body * 1.5));
+  const leftAligned = next.x0 >= first.x0 - first.size * 1.5 && next.x0 <= first.x0 + body * 2.2 &&
+    next.x1 <= Math.max(first.x1, last.x1) + first.size * 2 && next.x1 >= first.x0;
+  if (!centered && !leftAligned) return false;
+  const prevEnded = /[.!?。！？]$/.test(last.text.trim());
+  const rightEdge = Math.max(first.x1, last.x1, rightLimit ?? 0);
+  if (prevEnded && last.x1 < rightEdge - first.size * 3) return false;
+  if (prevEnded && !shortTableHead && next.x0 - first.x0 > first.size * .8 && next.x0 - last.x0 > first.size * .8) return false;
+  return true;
+}
+
+/** pdfplumber-style snap & join for collinear segmented horizontal table rules. */
+function joinHorizontalRules(drawings: Drawing[]): Drawing[] {
+  const rules = drawings
+    .filter(r => r.horizontal)
+    .map(r => ({ ...r }))
+    .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+  const joined: Drawing[] = [];
+  for (const r of rules) {
+    const prev = joined.find(p => Math.abs(p.y0 - r.y0) <= 2 && r.x0 <= p.x1 + 8 && r.x1 >= p.x0 - 8);
+    if (prev) {
+      prev.x0 = Math.min(prev.x0, r.x0);
+      prev.y0 = Math.min(prev.y0, r.y0);
+      prev.x1 = Math.max(prev.x1, r.x1);
+      prev.y1 = Math.max(prev.y1, r.y1);
+    } else {
+      joined.push(r);
+    }
+  }
+  return joined;
+}
+
+function identifyTables(
+  lines: Line[],
+  drawings: Drawing[],
+  visibleRegions: PageRegion[],
+  cols: Column[],
+  body: number,
+  pageNumber: number,
+  height: number,
+): PageRegion[] {
   const tables: PageRegion[] = [];
-  const captions = lines.filter(l => parseCaption(l.text)?.kind === 'table');
-  for (const caption of captions) {
-    const cx = (caption.x0 + caption.x1) / 2;
+  const hRules = joinHorizontalRules(drawings);
+  const captions: Array<{ first: Line; box: Rect }> = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const label = parseCaption(line.text);
+    if (label?.kind !== 'table' || isProseCaptionReference(label) || isWrappedProseMention(prevInColumn(lines, i), line)) continue;
+    const parts = [line];
+    for (let j = i + 1; j < lines.length; j++) {
+      const next = lines[j], last = parts[parts.length - 1];
+      if (xOverlap(next, line) === 0 && Math.abs((next.x0 + next.x1) / 2 - (line.x0 + line.x1) / 2) > body * 6) continue;
+      if (hRules.some(r => r.y0 > last.y0 && r.y0 < next.y1 && r.x0 < (line.x0 + line.x1) / 2 && r.x1 > (line.x0 + line.x1) / 2 && r.x1 - r.x0 > 80)) break;
+      if (!canContinueCaption(line, last, next, body, pageNumber)) break;
+      parts.push(next);
+    }
+    captions.push({ first: line, box: unionRects(parts) });
+  }
+  for (let idx = 0; idx < captions.length; idx++) {
+    const { first: caption, box: captionBox } = captions[idx];
+    const cx = (captionBox.x0 + captionBox.x1) / 2;
     const col = cols.find(c => cx >= c.x0 && cx <= c.x1) ?? { x0: cols[0].x0, x1: cols[cols.length - 1].x1 };
-    const rules = drawings.filter(r => r.horizontal && r.y0 > caption.y && r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80).sort((a, b) => a.y0 - b.y0);
+    const nextCaption = captions.slice(idx + 1).find(c => c.box.y0 > captionBox.y0 && c.box.x0 < col.x1 && c.box.x1 > col.x0);
+    const limitY = nextCaption?.box.y0 ?? height * .96;
+    const rules = hRules.filter(r => r.y0 > caption.y && r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80).sort((a, b) => a.y0 - b.y0);
     const top = rules[0];
-    if (!top || top.y0 - caption.y > 65)
-      continue;
-    const nextCaption = captions.find(c => c.y > caption.y && c.x0 < col.x1 && c.x1 > col.x0);
-    const aligned = rules.filter(r => Math.abs(r.x0 - top.x0) < 5 && Math.abs(r.x1 - top.x1) < 5 && r.y1 < (nextCaption?.y0 ?? height * .96));
-    if (aligned.length < 2)
-      continue;
-    const box = unionRects(aligned);
-    if (box.y1 - box.y0 < 16)
-      continue;
-    tables.push({ ...box, kind: 'table', parts: aligned.length, rules: { h: aligned.length, v: 0 } });
+    if (top && top.y0 - captionBox.y1 <= 65) {
+      const aligned = rules.filter(r => Math.abs(r.x0 - top.x0) < 6 && Math.abs(r.x1 - top.x1) < 6 && r.y1 < limitY);
+      if (aligned.length >= 2) {
+        let box = unionRects(aligned);
+        if (box.y1 - box.y0 >= 16) {
+          // If the clustered drawing region includes outlined table notes or bottom borders
+          // immediately below the last rule, union it so the table is neither clipped nor duplicated.
+          const matchingRegion = visibleRegions.find(reg =>
+            Math.abs(reg.x0 - box.x0) < 8 && Math.abs(reg.x1 - box.x1) < 8 &&
+            reg.y0 <= box.y0 + 4 && reg.y1 >= box.y1 - 2 && reg.y1 <= Math.min(limitY, box.y1 + body * 2.5));
+          if (matchingRegion) box = unionRects([box, matchingRegion]);
+          const attachedDrawings = drawings.filter(d =>
+            d.x0 >= box.x0 - 4 && d.x1 <= box.x1 + 4 &&
+            d.y0 >= box.y0 - 2 && d.y0 <= box.y1 + body * .6 &&
+            d.y1 <= Math.min(limitY, box.y1 + body * 2));
+          if (attachedDrawings.length) box = unionRects([box, ...attachedDrawings]);
+          tables.push({ ...box, kind: 'table', parts: aligned.length, rules: { h: aligned.length, v: 0 } });
+          continue;
+        }
+      }
+    }
+    // Fallback for bitmap/boxed tables without individual horizontal path strokes (e.g. JSSC comparison tables).
+    const bitmapTable = visibleRegions.find(reg =>
+      reg.y0 >= captionBox.y0 - 2 && reg.y0 - captionBox.y1 <= 30 && reg.y1 < limitY &&
+      reg.x0 < cx && reg.x1 > cx && reg.x1 - reg.x0 > 120 && reg.y1 - reg.y0 >= 24 &&
+      !lines.some(l => parseCaption(l.text)?.kind === 'figure' && l.y0 >= reg.y1 - 3 && l.y0 - reg.y1 < 40 && xOverlap(l, reg) > 0));
+    if (bitmapTable) {
+      tables.push({ ...bitmapTable, kind: 'table' });
+    }
   }
   return tables;
 }
 
 function fitFigures(regions: PageRegion[], items: RawItem[], lines: Line[], body: number, width: number, height: number, tables: PageRegion[], cols: Column[] = []): PageRegion[] {
+  // Filter out regions already claimed by a table (even when outlined notes slightly extend the region).
+  const unclaimed = regions.filter(region => !tables.some(t => {
+    const ox = xOverlap(t, region);
+    const oy = Math.max(0, Math.min(t.y1, region.y1) - Math.max(t.y0, region.y0));
+    return ox > Math.min(t.x1 - t.x0, region.x1 - region.x0) * .6 &&
+      (oy > Math.min(t.y1 - t.y0, region.y1 - region.y0) * .5 || (region.y0 >= t.y0 - 6 && region.y1 <= t.y1 + 16));
+  }));
+
+  // PDFFigures 2.0 corridor consolidation: merge stacked/adjacent subfigure regions in the same column
+  // when they share a single figure caption below and have no intervening prose or caption between them.
+  const mergedRegions = [...unclaimed];
+  const consumed = new Set<PageRegion>();
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const label = parseCaption(l.text);
+    if (!label || label.kind === 'table' || isProseCaptionReference(label) || isWrappedProseMention(prevInColumn(lines, i), l) || l.size > body * 1.05) continue;
+    const primary = mergedRegions.filter(r => !consumed.has(r) && l.y0 >= r.y1 - 3 && l.y0 - r.y1 < 55 && xOverlap(l, r) > 0)
+      .sort((a, b) => b.y1 - a.y1)[0];
+    if (!primary) continue;
+    const col = cols.find(c => primary.x0 >= c.x0 - 4 && primary.x1 <= c.x1 + 4);
+    if (!col) continue;
+    // Find the ceiling (nearest preceding prose paragraph, heading, table, or caption in the same column).
+    const ceiling = Math.max(
+      0,
+      ...tables.filter(t => xOverlap(t, col) > 0 && t.y1 <= primary.y0 + 2).map(t => t.y1),
+      ...lines.filter((prev, idx) => idx < i && prev.y1 <= primary.y0 + 2 && xOverlap(prev, col) > (col.x1 - col.x0) * .3 &&
+        (parseCaption(prev.text) || lineKind(prev, body, 2) !== 'p' ||
+          (prev.size >= body * .92 && (prev.x1 - prev.x0 > (col.x1 - col.x0) * .55 || prev.text.length > 45))))
+        .map(prev => prev.y1),
+    );
+    const siblings = mergedRegions.filter(r => !consumed.has(r) && r !== primary &&
+      r.x0 >= col.x0 - 4 && r.x1 <= col.x1 + 4 &&
+      r.y0 >= ceiling && r.y1 <= l.y0 + 3 && primary.y0 - r.y1 < body * 4);
+    if (siblings.length) {
+      const combined = unionRects([primary, ...siblings]);
+      Object.assign(primary, combined);
+      siblings.forEach(s => consumed.add(s));
+    }
+  }
+
   const figures: PageRegion[] = [];
-  for (const region of regions) {
-    if (tables.some(t => xOverlap(t, region) > Math.min(t.x1 - t.x0, region.x1 - region.x0) * .6 && region.y0 >= t.y0 - 4 && region.y1 <= t.y1 + 4))
-      continue;
-    const caption = lines.filter(l => parseCaption(l.text) && parseCaption(l.text)?.kind !== 'table' && l.size <= body * 1.02 && l.y0 >= region.y1 - 3 && l.y0 - region.y1 < 55 && xOverlap(l, region) > 0).sort((a, b) => a.y0 - b.y0)[0];
-    const lower = caption ? caption.y0 - 3 : region.y1 + 5;
-    const labelMargin = caption ? body * 4.5 : 14;
+  for (const region of mergedRegions.filter(r => !consumed.has(r))) {
+    const caption = lines.filter((l, idx) => {
+      const label = parseCaption(l.text);
+      return label && label.kind !== 'table' && !isProseCaptionReference(label) && !isWrappedProseMention(prevInColumn(lines, idx), l) &&
+        l.size <= body * 1.02 && l.y0 >= region.y1 - 3 && l.y0 - region.y1 < 55 && xOverlap(l, region) > 0;
+    }).sort((a, b) => a.y0 - b.y0)[0];
+    const lower = caption ? caption.y0 - 3 : region.y1 + Math.max(8, body * 1.2);
+    const labelMargin = caption ? body * 4.5 : Math.max(14, body * 2);
     const col = cols.find(col => region.x0 >= col.x0 - 2 && region.x1 <= col.x1 + 2);
     const labelLeft = Math.max(col?.x0 ?? 0, region.x0 - labelMargin);
     const labelRight = Math.min(col?.x1 ?? width, region.x1 + labelMargin);
-    const labels = items.filter(it => it.h <= body * 1.05 && it.x >= labelLeft - 1 && it.x + it.w <= labelRight + 1 && (bounds(it).y0 >= region.y0 - 10) && (bounds(it).y1 <= lower));
+    const upperExpand = caption ? Math.max(12, body * 1.6) : 10;
+    const labels = items.filter(it => {
+      const b = bounds(it);
+      if (it.h > body * 1.05 || it.x < labelLeft - 1 || it.x + it.w > labelRight + 1 || b.y0 < region.y0 - upperExpand || b.y1 > lower)
+        return false;
+      // Do not absorb a body prose line above or below the figure when expanding for axis/legend labels.
+      if (b.y1 < region.y0 || b.y0 > region.y1) {
+        const hostLine = lines.find(l => l.items.includes(it));
+        if (hostLine && (parseCaption(hostLine.text) || lineKind(hostLine, body, 2) !== 'p' ||
+            (hostLine.size >= body * .94 && (hostLine.x1 - hostLine.x0 > (col ? (col.x1 - col.x0) * .6 : width * .35) || hostLine.text.length > 50))))
+          return false;
+      }
+      return true;
+    });
     const box = unionRects([region, ...labels.map(bounds)]);
     figures.push({
       ...region,
@@ -421,24 +579,32 @@ function identifyCompositeFigures(items: RawItem[], regions: PageRegion[], body:
   let previousCaptionBottom = 0;
   for (let i = 0; i < lines.length; i++) {
     const first = lines[i], label = parseCaption(first.text);
-    if (!label || label.kind !== 'figure' || first.x1 - first.x0 < width * .65) continue;
+    const spansColumns = first.x1 - first.x0 >= width * .65 ||
+      (gutter !== null && first.x0 < gutter - body * 2 && first.x1 > gutter + body * 2);
+    if (!label || label.kind !== 'figure' || isProseCaptionReference(label) || isWrappedProseMention(lines[i - 1], first) || !spansColumns) continue;
+    if (!label.hasDelimiter && label.text && first.size >= body * .95) continue;
     const caption = [first];
     while (i + 1 < lines.length) {
       const next = lines[i + 1], prev = caption[caption.length - 1];
-      if (next.y - prev.y > body * 1.5 || Math.abs(next.size - first.size) > 1 ||
-        next.x0 < first.x0 - body || next.x0 > first.x0 + body * 2 || parseCaption(next.text)) break;
+      if (!canContinueCaption(first, prev, next, body, 2, first.x1)) break;
       caption.push(next); i++;
     }
+    const corridorLeft = Math.min(first.x0, gutter !== null ? width * .06 : first.x0) - body;
+    const corridorRight = Math.max(first.x1, gutter !== null ? width * .94 : first.x1) + body;
     const candidates = regions.filter(r => r.kind === 'figure' && r.y1 <= first.y0 + 3 &&
       r.y0 >= Math.max(previousCaptionBottom, first.y0 - height * .65) &&
-      r.x0 >= first.x0 - body && r.x1 <= first.x1 + body);
+      r.x0 >= corridorLeft && r.x1 <= corridorRight);
     const left = candidates.some(r => (r.x0 + r.x1) / 2 < width / 2);
     const right = candidates.some(r => (r.x0 + r.x1) / 2 >= width / 2);
     if (left && right && candidates.length >= 2) {
       const top = Math.min(...candidates.map(r => r.y0));
       const prose = lines.some(line => line.y0 >= top && line.y1 < first.y0 && line.size >= body * .95 &&
         line.text.length > 100 && line.x1 - line.x0 > width * .3);
-      if (!prose) results.push({ box: { x0: first.x0, y0: Math.max(0, top - body), x1: first.x1, y1: first.y0 - 2 }, caption, label: label.label });
+      if (!prose) {
+        const boxLeft = Math.min(first.x0, ...candidates.map(r => r.x0));
+        const boxRight = Math.max(first.x1, ...candidates.map(r => r.x1));
+        results.push({ box: { x0: boxLeft, y0: Math.max(0, top - body), x1: boxRight, y1: first.y0 - 2 }, caption, label: label.label });
+      }
     }
     previousCaptionBottom = caption[caption.length - 1].y1;
   }
@@ -565,7 +731,7 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   const visibleDrawings = geom.drawings.filter(drawing => !coveredBy(drawing, [...algorithms, ...codeFigures, ...portraits, ...composites.map(x => x.box)]));
   const cols = columnsFor(items, W, gutter);
   const allLines = toLines(items, Math.max(12, body * 1.2), gutter);
-  const tables = usedOCR ? [] : identifyTables(allLines, visibleDrawings, cols, H);
+  const tables = usedOCR ? [] : identifyTables(allLines, visibleDrawings, visibleRegions, cols, body, pageNumber, H);
   const plates = usedOCR || !options.keepFigures ? [] :
     matchFigurePlates(visibleDrawings, visibleRegions, allLines, W, H, line => lineKind(line, body, pageNumber) === 'p');
   const plateItems = new Set(plates.flatMap(plate => plate.caption.items));
@@ -578,9 +744,32 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   const regions = [...tables, ...figures];
   const tableNotes = options.keepFigures ? extractTableNotes(tables, items, body, toLines) : [];
   const tableNoteItems = new Set(tableNotes.flatMap(note => note.items));
-  const spanningProse = gutter === null ? [] : allLines.filter(l => l.items.some(it => it.x < gutter - 2 && it.x + it.w > gutter + 2 && /[A-Za-z]{3,}.*[A-Za-z]{3,}/.test(it.str)));
+  const spanningProse = gutter === null ? [] : allLines.filter(l => l.x0 < gutter - 2 && l.x1 > gutter + 2 &&
+    l.items.some(it => /[A-Za-z]{3,}/.test(it.str)));
   const wideItems = new Set(spanningProse.flatMap(l => l.items));
-  const equations = extractMathRegions(items.filter(it => !wideItems.has(it) && !tableNoteItems.has(it) && !plateItems.has(it)),
+  const captionProtectedBoxes: Rect[] = [];
+  for (let i = 0; i < allLines.length; i++) {
+    const line = allLines[i], label = parseCaption(line.text);
+    if (!label || isProseCaptionReference(label) || isWrappedProseMention(prevInColumn(allLines, i), line)) continue;
+    const nearVisual = [...figures, ...tables, ...codeFigures].some(r =>
+      xOverlap(line, r) > Math.min(line.x1 - line.x0, r.x1 - r.x0) * .35 &&
+      (Math.abs(line.y0 - r.y1) < body * 5 || Math.abs(r.y0 - line.y1) < body * 5));
+    if (!label.text || label.hasDelimiter || nearVisual) {
+      const parts = [line];
+      for (let j = i + 1; j < allLines.length; j++) {
+        const next = allLines[j], last = parts[parts.length - 1];
+        if (xOverlap(next, line) === 0 && Math.abs((next.x0 + next.x1) / 2 - (line.x0 + line.x1) / 2) > body * 6) continue;
+        if (!canContinueCaption(line, last, next, body, pageNumber, line.x1)) break;
+        parts.push(next);
+      }
+      captionProtectedBoxes.push(unionRects(parts));
+    }
+  }
+  const inProtectedCaption = (it: RawItem) => captionProtectedBoxes.some(box =>
+    it.x + it.w / 2 >= box.x0 - 2 && it.x + it.w / 2 <= box.x1 + body &&
+    it.y >= box.y0 - body * .5 && it.y <= box.y1 + body * .5);
+  const equations = extractMathRegions(
+    items.filter(it => !wideItems.has(it) && !tableNoteItems.has(it) && !plateItems.has(it) && !inProtectedCaption(it)),
     body, W, cols, [...regions, ...plates.map(plate => plate.image)], visibleDrawings);
   const placed: Placed[] = [];
   let serial = 0;
@@ -666,21 +855,20 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   let remaining = items.filter(it => !equationItems.has(it) && !tableNoteItems.has(it) && !plateItems.has(it) && !excluded.some(r => centerInside(it, r)));
   // Recover full-width title/author rows before dividing into columns.
   const fullRows = toLines(remaining, Math.max(12, body * 1.2), gutter);
-  const spans = gutter === null ? [] : fullRows.filter(l => l.items.some(it => it.str.trim() && it.x < gutter - 2 && it.x + it.w > gutter + 2));
-  for (const line of [...spans])
-    if (parseCaption(line.text)) {
+  const spans = gutter === null ? [] : fullRows.filter(l => l.x0 < gutter - 2 && l.x1 > gutter + 2);
+  for (const line of [...spans]) {
+    const label = parseCaption(line.text);
+    if (label && !isProseCaptionReference(label)) {
       let prev = line;
       for (const next of fullRows.filter(l => l.y > line.y).sort((a, b) => a.y - b.y)) {
-        if (next.y - prev.y <= line.size * .2 || next.y - prev.y > line.size * 1.75 ||
-          next.x0 < line.x0 - line.size || next.x0 > line.x0 + line.size * 1.5 ||
-          next.x1 > line.x1 + line.size * 1.5 || Math.abs(next.size - line.size) > 1 ||
-          parseCaption(next.text) || lineKind(next, body, pageNumber) !== 'p')
+        if (!canContinueCaption(line, prev, next, body, pageNumber, line.x1))
           break;
         if (!spans.includes(next))
           spans.push(next);
         prev = next;
       }
     }
+  }
   const spanItems = new Set(spans.flatMap(l => l.items));
   remaining = remaining.filter(it => !spanItems.has(it));
   const streams = gutter === null ? [{ column: 0, items: remaining }] : [
@@ -707,22 +895,25 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const label = parseCaption(line.text);
-      const relatedVisual = label && [...figures, ...tables, ...codeFigures].some(region =>
+      const wrappedMention = isWrappedProseMention(lines[i - 1], line);
+      const relatedVisual = label && !wrappedMention && [...figures, ...tables, ...codeFigures].some(region =>
         (label.kind === 'table' ? tables.includes(region as PageRegion) : !tables.includes(region as PageRegion)) &&
         xOverlap(line, region) > Math.min(line.x1 - line.x0, region.x1 - region.x0) * .35 &&
         (line.y0 >= region.y1 - 3 && line.y0 - region.y1 < body * 5 ||
           label.kind === 'table' && region.y0 >= line.y1 && region.y0 - line.y1 < body * 5));
-      const proseReference = label && /^(?:shows?|illustrates?|depicts?|presents?|compares?|demonstrates?|is|are|was|were|provides?|gives?|summarizes?|describes?|can|has|have)\b/i.test(label.text);
-      const caption = label && !proseReference && (!label.text || label.hasDelimiter || relatedVisual);
+      const proseReference = isProseCaptionReference(label);
+      const caption = label && !wrappedMention && !proseReference && (!label.text || label.hasDelimiter || relatedVisual);
       if (!caption) {
         ordinary.push(line);
         continue;
       }
       flush();
+      const colWidth = cols.find(c => line.x0 >= c.x0 - 4 && line.x1 <= c.x1 + 4);
+      const rightLimit = colWidth ? colWidth.x1 : line.x1;
       const parts = [line];
       while (i + 1 < lines.length) {
         const next = lines[i + 1], last = parts[parts.length - 1];
-        if (parseCaption(next.text) || lineKind(next, body, pageNumber) !== 'p' || next.y - last.y > line.size * 1.75 || Math.abs(next.size - line.size) > 1 || next.x0 > line.x1 || next.x1 < line.x0)
+        if (!canContinueCaption(line, last, next, body, pageNumber, rightLimit))
           break;
         parts.push(next);
         i++;
@@ -746,11 +937,11 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
     const label = parseCaption(entry.block.text);
     if (label?.kind !== 'figure') continue;
     const figure = placed.filter(candidate => candidate.block.kind === 'figure' &&
-      !captionsByFigure.has(candidate) && candidate.column === entry.column &&
+      !captionsByFigure.has(candidate) && (candidate.column === entry.column || candidate.column === -1) &&
       candidate.box.y1 <= entry.box.y0 + 3 && entry.box.y0 - candidate.box.y1 < 55 &&
       xOverlap(candidate.box, entry.box) >= Math.min(candidate.box.x1 - candidate.box.x0,
         entry.box.x1 - entry.box.x0) * .6)
-      .sort((a, b) => b.box.y1 - a.box.y1)[0];
+      .sort((a, b) => Number(b.column === entry.column) - Number(a.column === entry.column) || b.box.y1 - a.box.y1)[0];
     if (!figure) continue;
     figure.block.figureLabel = label.label;
     entry.block.figureLabel = label.label;
