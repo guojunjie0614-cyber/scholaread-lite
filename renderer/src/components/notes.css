@@ -1,0 +1,56 @@
+.reading-notes { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface-companion); border-left: 1px solid var(--border-subtle); font-family: var(--font-display); }
+.reading-notes .panel-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-height: var(--header-h); height: var(--header-h); flex: none; padding: 0 52px 0 10px; align-items: center; gap: 4px; }
+.reading-notes .panel-tabs > button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; min-width: 0; min-height: 29px; padding: 4px 9px; border-radius: var(--radius-control); color: var(--text-2); font-size: 13px; font-weight: 500; background: transparent; box-shadow: none; }
+.reading-notes .panel-tabs > .spacer { display: none; }
+.reading-notes .panel-tabs > button.on { background: var(--surface-2); color: var(--text); }
+.reading-notes .panel-tabs > button:hover { background: var(--fill-hover, var(--surface-2)); }
+.reading-notes .panel-tabs .btn.icon { width: 29px; padding: 0; }
+.reading-notes .spacer { flex: 1; }
+.reading-notes .notes-count { color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.reading-notes .panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 12px 28px; }
+.reading-notes .notes-empty { display: flex; flex-direction: column; align-items: center; padding: 66px 12px 24px; color: var(--text-3); text-align: center; }
+.reading-notes .notes-empty > svg { width: 22px; height: 22px; stroke-width: 1.4; }
+.reading-notes .notes-empty h3 { margin: 12px 0 5px; color: var(--text-2); font-size: 13px; line-height: 20px; font-weight: 400; }
+.reading-notes .notes-empty p { max-width: 100%; margin: 0; font-size: 12px; line-height: 1.65; font-weight: 400; text-wrap: pretty; }
+.reading-notes .note-item { margin: 0 0 8px; padding: 12px 10px 10px; border: 0; border-bottom: 1px solid var(--border-subtle); border-radius: 0; background: transparent; cursor: default; }
+.reading-notes .note-location { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; color: var(--text-3); font-size: 11px; }
+.reading-notes .note-location button { padding: 0; color: var(--text-2); font-size: 11px; }
+.reading-notes .note-location button:hover:not(:disabled) { color: var(--accent); }
+.reading-notes .note-location time { margin-left: auto; }
+.reading-notes .note-quote { display: -webkit-box; width: 100%; margin: 0 0 12px; padding: 0 0 0 10px; border: 0; border-left: 2px solid var(--border-subtle); color: var(--text-2); font-family: var(--serif); font-size: 13px; line-height: 1.7; text-align: left; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.reading-notes .note-quote:hover:not(:disabled) { color: var(--text); }
+.reading-notes .note-quote:disabled { opacity: 1; cursor: text; }
+.reading-notes .note-body { margin: 0 0 11px; color: var(--text); font-size: 13px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+.reading-notes .note-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; opacity: 0; }
+.reading-notes .note-actions > button { height: 28px; font-size: 12px; padding: 0 6px; color: var(--text-2); }
+.reading-notes .note-actions > button:last-child { color: var(--text-3); }
+.reading-notes .note-actions > button:last-child:hover { color: var(--danger); }
+.reading-notes .note-editor textarea { width: 100%; min-height: 110px; resize: vertical; padding: 9px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: var(--surface-input, var(--surface)); color: var(--text); font: 13px/1.7 var(--sans); }
+.reading-notes .note-editor-actions { display: flex; justify-content: flex-end; gap: 5px; padding-top: 8px; }
+.reading-notes .note-editor-actions .btn { height: 28px; font-size: 12px; }
+.reading-notes .note-delete-confirm { padding: 10px; background: var(--surface-2); border-radius: var(--radius-control); }
+.reading-notes .note-delete-confirm p { margin: 0 0 9px; color: var(--text-2); font-size: 12px; }
+.reading-notes .note-delete-confirm > div { display: flex; justify-content: flex-end; gap: 5px; }
+.reading-notes .note-delete-confirm .btn { height: 27px; font-size: 12px; }
+.reading-notes .note-delete-confirm .danger { color: var(--danger); }
+.reading-notes .document-outline { display: grid; gap: 3px; }
+.reading-notes .outline-item { display: flex; align-items: baseline; gap: 10px; padding: 9px 8px; color: var(--text-2); text-align: left; line-height: 1.55; font-size: 12.5px; border-radius: var(--radius-control); }
+.reading-notes .outline-item.h1 { color: var(--text); font-weight: 550; }
+.reading-notes .outline-item[data-depth="1"] { padding-left: 20px; }
+.reading-notes .outline-item[data-depth="2"] { padding-left: 32px; }
+.reading-notes .outline-item span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.reading-notes .outline-item small { flex: none; color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.reading-notes .outline-item:hover { background: var(--surface-2); color: var(--text); }
+.reading-notes .notes-error { margin: 0 0 12px; padding: 10px; border-radius: var(--radius-control); color: var(--danger); background: var(--surface-2); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.reading-notes .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.reading-notes .dot.yellow { background: #c49913; }
+.reading-notes .dot.green { background: #3b9557; }
+.reading-notes .dot.blue { background: #4f8ce8; }
+.reading-notes .dot.pink { background: #d35b8d; }
+.reading-notes .dot.purple { background: #8968e0; }
+.reading-notes[data-open="false"] { visibility: hidden; pointer-events: none; }
+
+.reading-notes .note-item:hover .note-actions, .reading-notes .note-item:focus-within .note-actions { opacity: 1; }
+.reading-notes .note-editor-actions .btn.primary { background: var(--text); color: var(--surface); box-shadow: none; }
+.reading-notes .outline-item[aria-current='location'] { background: var(--fill-hover, var(--surface-2)); color: var(--text); }
+@media (hover: none) { .reading-notes .note-actions { opacity: 1; } }

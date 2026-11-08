@@ -1,0 +1,23 @@
+.reader-chat-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.reading-notes [hidden] { display: none !important; }
+.ai-panel-active .reading-notes { min-width: 0; }
+.chat-panel-resize { position: absolute; z-index: 9; right: calc(var(--panel) - 3px); top: 50px; bottom: 0; width: 6px; cursor: col-resize; touch-action: none; }
+.chat-panel-resize:hover, .chat-panel-resize[data-dragging], .chat-panel-resize:focus-visible { background: var(--accent-tint); }
+.app:has(.chat-panel-resize[data-dragging]) { transition: none; }
+.reader-ai-menu { position: fixed; z-index: 100; padding: var(--menu-inset, 5px); width: 192px; border-radius: var(--radius-menu); border: 1px solid var(--border-floating); background: var(--surface-material); backdrop-filter: var(--material-filter); box-shadow: var(--menu-shadow); }
+.reader-ai-menu button { display: block; width: 100%; text-align: left; padding: 8px 10px; font-size: 13px; border-radius: var(--radius-menu-item); }
+.reader-ai-menu button:is(:hover,:focus-visible) { background: var(--fill-hover); }
+.figure { position: relative; }
+.figure > .region-ai-button { position: absolute; right: 8px; top: 8px; background: var(--surface-material); backdrop-filter: var(--material-filter); opacity: 0; transition: opacity var(--dur-fast); }
+.figure:is(:hover,:focus-within) > .region-ai-button { opacity: 1; }
+.faithful .page .textLayer { position: absolute; inset: 0; overflow: clip; opacity: 1; line-height: 1; text-align: initial; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 1; }
+.faithful .textLayer :is(span,br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
+.faithful .textLayer > :not(.markedContent), .faithful .textLayer .markedContent span:not(.markedContent) { z-index: 1; }
+.faithful .textLayer span.markedContent { top: 0; height: 0; }
+.faithful .textLayer ::selection { background: var(--selection); }
+.faithful .textLayer br::selection { background: transparent; }
+.faithful .page .page-render-status, .faithful .page .page-render-error { z-index: 2; }
+.faithful .page > .region-ai-button { position: absolute; top: 8px; right: 8px; z-index: 3; background: var(--surface-material); opacity: 0; }
+.faithful .page:is(:hover,:focus-within) > .region-ai-button { opacity: 1; }
+.page-text-error { position: absolute; bottom: 8px; left: 8px; right: 8px; padding: 8px; background: var(--surface-material); color: var(--danger); font-size: 12px; z-index: 2; }
+@media (hover: none) { .figure > .region-ai-button { opacity: 1; } }

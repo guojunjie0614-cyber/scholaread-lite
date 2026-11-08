@@ -1,0 +1,119 @@
+/* Quiet, interruptible motion: controls respond immediately; surfaces settle behind them. */
+button {
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out), scale var(--dur-base) var(--ease-out);
+}
+:is(.btn, .desktop-menu-trigger, .segmented button):active:not(:disabled) {
+  scale: .98;
+  transition-duration: var(--dur-press);
+}
+.panel-toggle:active:not(:disabled) { scale: .92; transition-duration: var(--dur-press); }
+:is(.paper-row, .collection-row, .library-paper) {
+  transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+:is(.search, .library-search, input, textarea, select) {
+  transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.reading-notes .note-actions { transition: opacity var(--dur-fast) var(--ease-out); }
+
+/* One measured surface follows selection, including unequal labels and resized controls. */
+.motion-selection { position: relative; isolation: isolate; }
+.motion-selection::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: var(--selection-width, 0px);
+  height: var(--selection-height, 0px);
+  transform: translate(var(--selection-x, 0px), var(--selection-y, 0px));
+  border-radius: var(--selection-radius, var(--radius-control));
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+.motion-selection[data-selection-measured='true']::before { opacity: 1; }
+.motion-selection[data-selection-ready='true']::before {
+  transition: transform var(--dur-selection) var(--ease-out), width var(--dur-selection) var(--ease-out),
+    height var(--dur-selection) var(--ease-out), background-color var(--dur-base) var(--ease-out);
+}
+.segmented.motion-selection[data-selection-measured='true'] button.on { background: transparent; box-shadow: none; }
+.reader-settings .settings-navigation.motion-selection::before { background: var(--fill-hover); box-shadow: none; }
+.reader-settings .settings-navigation.motion-selection[data-selection-measured='true'] .settings-nav-item[aria-current='page'] { background: transparent; }
+.reader-settings .appearance-options.motion-selection::before { background: var(--surface-floating); box-shadow: 0 1px 3px var(--border-subtle); }
+.reader-settings .appearance-options.motion-selection[data-selection-measured='true'] input:checked + span { background: transparent; box-shadow: none; }
+.reader-settings .appearance-option > span { transition: color var(--dur-base) var(--ease-out); }
+.reading-notes .panel-tabs.motion-selection::before { background: var(--surface-2); box-shadow: none; }
+.reading-notes .panel-tabs.motion-selection[data-selection-measured='true'] > button.on { background: transparent; }
+
+/* Let the column finish closing before hiding it; input is disabled immediately by inert. */
+.app { transition: grid-template-columns var(--dur-panel) var(--ease-out); }
+.rail, .reading-notes {
+  opacity: 1;
+  translate: 0;
+  visibility: visible;
+  transition: opacity var(--dur-base) var(--ease-out), translate var(--dur-panel) var(--ease-out), visibility 0s;
+}
+.rail[data-open='false'], .reading-notes[data-open='false'] {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-fast) var(--ease-out), translate var(--dur-panel) var(--ease-out), visibility 0s var(--dur-panel);
+}
+.rail[data-open='false'] { translate: -8px 0; }
+.reading-notes[data-open='false'] { translate: 8px 0; }
+.toolbar { transition: padding-left var(--dur-panel) var(--ease-out), padding-right var(--dur-panel) var(--ease-out); }
+.sidebar-toggle-divider { transition-timing-function: var(--ease-out); }
+
+.motion-disclosure {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows var(--dur-selection) var(--ease-out), opacity var(--dur-base) var(--ease-out), visibility 0s;
+}
+.motion-disclosure > div { min-height: 0; overflow: hidden; }
+.motion-disclosure[data-open='false'] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows var(--dur-selection) var(--ease-out), opacity var(--dur-fast) var(--ease-out), visibility 0s var(--dur-selection);
+}
+:is(.collection-disclosure, .library-section-heading > button[aria-expanded]) > svg { transition: transform var(--dur-selection) var(--ease-out); }
+
+/* Theme changes dissolve through the preview, while menus unfold from their anchor. */
+.reader-settings .preview-window, .reader-settings .preview-window * {
+  transition: background-color var(--dur-selection) var(--ease-out), color var(--dur-selection) var(--ease-out), border-color var(--dur-selection) var(--ease-out);
+}
+.desktop-menu-trigger:is(.settings-menu, .field-menu, .library-control, .reader-page-menu, .library-search-scope) > svg:last-child {
+  transition: transform var(--dur-selection) var(--ease-out);
+}
+.desktop-menu-trigger:is(.settings-menu, .field-menu, .library-control, .reader-page-menu, .library-search-scope)[aria-expanded='true'] > svg:last-child { transform: rotate(180deg); }
+.language-toggle > span { animation: control-label-in var(--dur-base) var(--ease-out); }
+.overlay { animation-duration: var(--dur-base); }
+.dialog { animation: surface-in var(--dur-selection) var(--ease-out); }
+.desktop-menu { animation: none; }
+.desktop-menu[data-positioned='true'] { animation: anchored-menu-in var(--dur-base) var(--ease-out); }
+.motion-exit-snapshot, .motion-exit-snapshot * { pointer-events: none !important; }
+.motion-exit-snapshot, .motion-exit-snapshot *, .motion-exit-snapshot::before, .motion-exit-snapshot *::before,
+.motion-exit-snapshot::after, .motion-exit-snapshot *::after {
+  animation: none !important;
+  transition: none !important;
+}
+@keyframes surface-in {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes anchored-menu-in {
+  from { opacity: 0; transform: translateY(var(--menu-enter-offset, -2px)) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes control-label-in {
+  from { opacity: .5; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

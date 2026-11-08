@@ -1,0 +1,25 @@
+.block-translation-feedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  color: var(--text-3);
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.block-translation-feedback .btn { font-size: 12px; }
+.block-translation-pending { margin-top: 4px; }
+.blk[data-translation-status="running"] { box-shadow: -2px 0 0 var(--border); }
+.translation-progress { display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap; }
+.translation-locate-failure { border: 0; background: transparent; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
+.translation-locate-failure:hover { text-decoration: underline; }
+
+.page-render-status {
+  position: absolute;
+  inset: 12px 12px auto auto;
+  color: var(--text-3);
+  font-size: 12px;
+  pointer-events: none;
+}

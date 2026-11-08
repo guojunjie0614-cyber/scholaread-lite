@@ -1,0 +1,1071 @@
+[
+  {
+    "id": "2:10",
+    "text": "• ⃝1 The different amplitudes of some large elements (called comb-elements as [15]–[17]) are firstly quantified into weights, thus reflecting their probabilities for signal elements;",
+    "textRuns": [
+      {
+        "text": "• "
+      },
+      {
+        "text": "⃝",
+        "mathPosition": {
+          "group": "77.080:69.510",
+          "x": -0.32520325203252126,
+          "y": 0,
+          "width": 0.9999999999999994,
+          "size": 1
+        }
+      },
+      {
+        "text": "1",
+        "bold": true,
+        "mathPosition": {
+          "group": "77.080:69.510",
+          "x": 0,
+          "y": -0.030111412225240212,
+          "width": 0.3499949814312953,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " The different amplitudes of some large elements (called comb-elements as [15]–[17]) are firstly quantified into weights, thus reflecting their probabilities for signal elements;"
+      }
+    ],
+    "caches": [
+      {
+        "source": "• ⃝1 The different amplitudes of some large elements (called comb-elements as [15]–[17]) are firstly quantified into weights, thus reflecting their probabilities for signal elements;",
+        "result": "• ⃝1 首先将一些较大元素（即梳状元素（comb-elements）[15]–[17]）的不同幅值量化为权重，从而反映其属于信号元素的概率；",
+        "provider": "magpie",
+        "model": "devin/swe-2"
+      }
+    ]
+  },
+  {
+    "id": "2:30",
+    "text": "⃝1 the larger element with a higher amplitude, which always occupies a higher probability for the signal element, deserves a higher weight in constructing the comb-search-range;",
+    "textRuns": [
+      {
+        "text": "⃝",
+        "mathPosition": {
+          "group": "460.550:325.170",
+          "x": -0.32419953829167536,
+          "y": 0,
+          "width": 1.0000000000000022,
+          "size": 1
+        }
+      },
+      {
+        "text": "1",
+        "bold": true,
+        "mathPosition": {
+          "group": "460.550:325.170",
+          "x": 0,
+          "y": -0.030111412225234505,
+          "width": 0.34999498143129815,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " the larger element with a higher amplitude, which always occupies a higher probability for the signal element, deserves a higher weight in constructing the comb-search-range;"
+      }
+    ],
+    "caches": [
+      {
+        "source": "⃝1 the larger element with a higher amplitude, which always occupies a higher probability for the signal element, deserves a higher weight in constructing the comb-search-range;",
+        "result": "⃝1 具有更高幅度的较大元素，由于其在信号元素中始终占据更高概率，因此在构建梳状搜索范围（comb-search-range）时应被赋予更高权重；",
+        "provider": "magpie",
+        "model": "devin/swe-2"
+      }
+    ]
+  },
+  {
+    "id": "2:31",
+    "text": "⃝2 the frequency point, which is covered by several comb-search-ranges simultaneously, further attracts an even higher weight than the other frequency points.",
+    "textRuns": [
+      {
+        "text": "⃝",
+        "mathPosition": {
+          "group": "496.300:325.170",
+          "x": -0.32419953829167536,
+          "y": 0,
+          "width": 1.0000000000000022,
+          "size": 1
+        }
+      },
+      {
+        "text": "2",
+        "bold": true,
+        "mathPosition": {
+          "group": "496.300:325.170",
+          "x": 0,
+          "y": -0.030111412225234505,
+          "width": 0.34999498143129815,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " the frequency point, which is covered by several comb-search-ranges simultaneously, further attracts an even higher weight than the other frequency points."
+      }
+    ],
+    "caches": [
+      {
+        "source": "⃝2 the frequency point, which is covered by several comb-search-ranges simultaneously, further attracts an even higher weight than the other frequency points.",
+        "result": "⃝2 同时被多个梳状搜索范围覆盖的频点，相比其他频点会进一步获得更高权重。",
+        "provider": "magpie",
+        "model": "devin/swe-2"
+      }
+    ]
+  },
+  {
+    "id": "3:34",
+    "text": "Similarly to Eq. (19), all Nsig signal elements in rsig[t′] are also i.i.d. with another PDF χ2sig,2L(x) as",
+    "textRuns": [
+      {
+        "text": "Similarly to Eq. (19), all "
+      },
+      {
+        "text": "N",
+        "italic": true
+      },
+      {
+        "text": "sig",
+        "script": "sub"
+      },
+      {
+        "text": " signal elements in "
+      },
+      {
+        "text": "r",
+        "bold": true,
+        "mathPosition": {
+          "group": "595.060:531.950",
+          "x": 0,
+          "y": -1.1410904117395969e-14,
+          "width": 0.3889999999999946,
+          "size": 1
+        }
+      },
+      {
+        "text": "sig",
+        "script": "sub",
+        "mathPosition": {
+          "group": "595.060:531.950",
+          "x": 0.3894409314463397,
+          "y": 0.29208069858476043,
+          "width": 0.8168882866606408,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[",
+        "script": "sup",
+        "mathPosition": {
+          "group": "595.060:531.950",
+          "x": 0.3894409314463397,
+          "y": -0.5199237177557025,
+          "width": 0.22637675398976742,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "t",
+        "script": "sup",
+        "italic": true,
+        "mathPosition": {
+          "group": "595.060:531.950",
+          "x": 0.6152765231355899,
+          "y": -0.5199237177557025,
+          "width": 0.30211566797149686,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "′",
+        "script": "sup",
+        "mathPosition": {
+          "group": "595.060:531.950",
+          "x": 0.9173943591287638,
+          "y": -0.8220415537488763,
+          "width": 0.2204778681120195,
+          "size": 0.499949814312958
+        }
+      },
+      {
+        "text": "]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "595.060:531.950",
+          "x": 1.1883970691558687,
+          "y": -0.5199237177557025,
+          "width": 0.22637675398976742,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " are also i.i.d. with another PDF "
+      },
+      {
+        "text": "χ",
+        "italic": true,
+        "mathPosition": {
+          "group": "607.590:429.310",
+          "x": 0,
+          "y": 0,
+          "width": 0.6256999999999987,
+          "size": 1
+        }
+      },
+      {
+        "text": "2",
+        "script": "sup",
+        "mathPosition": {
+          "group": "607.590:429.310",
+          "x": 0.6263173742848549,
+          "y": -0.3623406604436429,
+          "width": 0.39857428485395774,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "sig",
+        "script": "sub",
+        "mathPosition": {
+          "group": "607.590:429.310",
+          "x": 0.6263173742848549,
+          "y": 0.27602127873130583,
+          "width": 0.8168882866606465,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "607.590:429.310",
+          "x": 1.4423366455886786,
+          "y": 0.27602127873130583,
+          "width": 0.2375065943992784,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "2",
+        "script": "sub",
+        "mathPosition": {
+          "group": "607.590:429.310",
+          "x": 1.6802168021680228,
+          "y": 0.27602127873130583,
+          "width": 0.39857428485395774,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "L",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "607.590:429.310",
+          "x": 2.078691157281947,
+          "y": 0.27602127873130583,
+          "width": 0.5485821338954159,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "("
+      },
+      {
+        "text": "x",
+        "italic": true
+      },
+      {
+        "text": ") as"
+      }
+    ],
+    "caches": [
+      {
+        "source": "Similarly to Eq. (19), all N<sub>sig</sub> signal elements in r<sub>sig</sub><sup>[</sup><sup>t</sup><sup>′</sup><sup>]</sup> are also i.i.d. with another PDF χ<sup>2</sup><sub>sig</sub><sub>,</sub><sub>2</sub><sub>L</sub>(x) as",
+        "result": "与式 (19) 类似，所有 N<sub>sig</sub> 信号元素在 r<sub>sig</sub><sup>[</sup><sup>t</sup><sup>′</sup><sup>]</sup> 中也是独立同分布（i.i.d.）的，并服从另一个概率密度函数（PDF）χ<sup>2</sup><sub>sig</sub><sub>,</sub><sub>2</sub><sub>L</sub>(x)，如下所示",
+        "provider": "magpie",
+        "model": "devin/swe-2"
+      }
+    ]
+  },
+  {
+    "id": "4:13",
+    "text": "Among rc[t ], all noise elements r[cs-noit] falling into Rcomb-search[t] can be denoted by rcs-noi[t] = {rcs-noi[t],0, ..., r[cs-noit],N cs-noi[t]−1}, where",
+    "textRuns": [
+      {
+        "text": "Among "
+      },
+      {
+        "text": "r",
+        "bold": true,
+        "mathPosition": {
+          "group": "485.680:91.800",
+          "x": 0,
+          "y": 5.705452058697984e-15,
+          "width": 0.38900000000000023,
+          "size": 1
+        }
+      },
+      {
+        "text": "c",
+        "script": "sub",
+        "mathPosition": {
+          "group": "485.680:91.800",
+          "x": 0.38843721770550943,
+          "y": 0.13449764127271224,
+          "width": 0.31079554351099103,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[",
+        "script": "sup",
+        "mathPosition": {
+          "group": "485.680:91.800",
+          "x": 0.38843721770550943,
+          "y": -0.5189200040148509,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "t",
+        "script": "sup",
+        "italic": true,
+        "mathPosition": {
+          "group": "485.680:91.800",
+          "x": 0.6152765231356013,
+          "y": -0.5189200040148509,
+          "width": 0.302115667971494,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " ",
+        "mathPosition": {
+          "group": "485.680:91.800",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "size": 1
+        }
+      },
+      {
+        "text": "]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "485.680:91.800",
+          "x": 0.9173943591287752,
+          "y": -0.5189200040148509,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ", all noise elements "
+      },
+      {
+        "text": "r",
+        "bold": true,
+        "mathPosition": {
+          "group": "485.680:184.540",
+          "x": 0,
+          "y": 5.705452058697984e-15,
+          "width": 0.38900000000000023,
+          "size": 1
+        }
+      },
+      {
+        "text": "[",
+        "script": "sup",
+        "mathPosition": {
+          "group": "485.680:184.540",
+          "x": 0.3884372177055109,
+          "y": -0.5189200040148509,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "cs-noi",
+        "script": "sub",
+        "mathPosition": {
+          "group": "485.680:184.540",
+          "x": 0.3884372177055137,
+          "y": 0.29308441232560634,
+          "width": 1.7107754692361736,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "t",
+        "script": "sup",
+        "italic": true,
+        "mathPosition": {
+          "group": "485.680:184.540",
+          "x": 0.6152765231356042,
+          "y": -0.5189200040148509,
+          "width": 0.302115667971494,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "485.680:184.540",
+          "x": 0.917394359128778,
+          "y": -0.5189200040148509,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " falling into "
+      },
+      {
+        "text": "R",
+        "italic": true,
+        "mathPosition": {
+          "group": "485.680:256.330",
+          "x": 0,
+          "y": 0,
+          "width": 0.7592999999999985,
+          "size": 1
+        }
+      },
+      {
+        "text": "comb-search",
+        "script": "sub",
+        "mathPosition": {
+          "group": "485.680:256.330",
+          "x": 0.758807588075881,
+          "y": 0.2930844123256007,
+          "width": 3.5762487202649837,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[",
+        "script": "sup",
+        "mathPosition": {
+          "group": "485.680:256.330",
+          "x": 0.7668372980026084,
+          "y": -0.5189200040148566,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "t",
+        "script": "sup",
+        "italic": true,
+        "mathPosition": {
+          "group": "485.680:256.330",
+          "x": 0.9926728896918586,
+          "y": -0.5189200040148566,
+          "width": 0.30211566797149686,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "485.680:256.330",
+          "x": 1.2947907256850324,
+          "y": -0.5189200040148566,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " can be denoted by "
+      },
+      {
+        "text": "r",
+        "bold": true,
+        "mathPosition": {
+          "group": "499.090:127.260",
+          "x": 0,
+          "y": 0,
+          "width": 0.38899999999999885,
+          "size": 1
+        }
+      },
+      {
+        "text": "cs-noi",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:127.260",
+          "x": 0.38843721770550943,
+          "y": 0.29308441232560634,
+          "width": 1.7107754692361736,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[",
+        "script": "sup",
+        "mathPosition": {
+          "group": "499.090:127.260",
+          "x": 0.38843721770550943,
+          "y": -0.5199237177556968,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "t",
+        "script": "sup",
+        "italic": true,
+        "mathPosition": {
+          "group": "499.090:127.260",
+          "x": 0.6152765231355999,
+          "y": -0.5199237177556968,
+          "width": 0.302115667971494,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "499.090:127.260",
+          "x": 0.9173943591287766,
+          "y": -0.5199237177556968,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " = {"
+      },
+      {
+        "text": "r",
+        "mathPosition": {
+          "group": "499.090:166.940",
+          "x": 0,
+          "y": 0,
+          "width": 0.38900000000000023,
+          "size": 1
+        }
+      },
+      {
+        "text": "cs-noi",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:166.940",
+          "x": 0.38944093144635106,
+          "y": 0.29308441232560634,
+          "width": 1.7107754692361736,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[",
+        "script": "sup",
+        "mathPosition": {
+          "group": "499.090:166.940",
+          "x": 0.38944093144635106,
+          "y": -0.5199237177556968,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "t",
+        "script": "sup",
+        "italic": true,
+        "mathPosition": {
+          "group": "499.090:166.940",
+          "x": 0.6152765231356013,
+          "y": -0.5199237177556968,
+          "width": 0.302115667971494,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "499.090:166.940",
+          "x": 0.917394359128778,
+          "y": -0.5199237177556968,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "499.090:166.940",
+          "x": 2.099769145839608,
+          "y": 0.29308441232560634,
+          "width": 0.2375065943992784,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "0",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:166.940",
+          "x": 2.3376493024189524,
+          "y": 0.29308441232560634,
+          "width": 0.39857428485396057,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",",
+        "italic": true
+      },
+      {
+        "text": " "
+      },
+      {
+        "text": "...,",
+        "italic": true
+      },
+      {
+        "text": " "
+      },
+      {
+        "text": "r",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 0,
+          "y": 0,
+          "width": 0.38900000000000023,
+          "size": 1
+        }
+      },
+      {
+        "text": "[",
+        "script": "sup",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 0.38944093144635106,
+          "y": -0.5199237177556968,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "cs-noi",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 0.38944093144635106,
+          "y": 0.5560574124259782,
+          "width": 1.7107754692361736,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "t",
+        "script": "sup",
+        "italic": true,
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 0.6152765231356013,
+          "y": -0.5199237177556968,
+          "width": 0.302115667971494,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 0.9173943591287752,
+          "y": -0.5199237177556968,
+          "width": 0.22637675398976173,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",N",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 2.0997691458396055,
+          "y": 0.5560574124259782,
+          "width": 0.8709275117936355,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " ",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "size": 1
+        }
+      },
+      {
+        "text": "cs-noi",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 2.9709926728896914,
+          "y": 0.7919301415236418,
+          "width": 1.2218773461808692,
+          "size": 0.499949814312958
+        }
+      },
+      {
+        "text": "[",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 3.046271203452775,
+          "y": 0.19070561075981474,
+          "width": 0.20137978520525834,
+          "size": 0.499949814312958
+        }
+      },
+      {
+        "text": "t",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 3.2470139516209975,
+          "y": 0.19070561075981474,
+          "width": 0.2818217103282145,
+          "size": 0.499949814312958
+        }
+      },
+      {
+        "text": "]",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 3.5290575127973502,
+          "y": 0.19070561075981474,
+          "width": 0.20137978520525834,
+          "size": 0.499949814312958
+        }
+      },
+      {
+        "text": "−",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 4.242697982535379,
+          "y": 0.5560574124259782,
+          "width": 0.6250210378400093,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "1",
+        "script": "sub",
+        "mathPosition": {
+          "group": "499.090:211.850",
+          "x": 4.868011643079388,
+          "y": 0.5560574124259782,
+          "width": 0.39857428485395774,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "}, where"
+      }
+    ],
+    "caches": [
+      {
+        "source": "Among r<sub>c</sub><sup>[</sup><sup>t</sup> <sup>]</sup>, all noise elements r<sup>[</sup><sub>cs-noi</sub><sup>t</sup><sup>]</sup> falling into R<sub>comb-search</sub><sup>[</sup><sup>t</sup><sup>]</sup> can be denoted by r<sub>cs-noi</sub><sup>[</sup><sup>t</sup><sup>]</sup> = {r<sub>cs-noi</sub><sup>[</sup><sup>t</sup><sup>]</sup><sub>,</sub><sub>0</sub>, ..., r<sup>[</sup><sub>cs-noi</sub><sup>t</sup><sup>]</sup><sub>,N</sub> <sub>cs-noi</sub><sub>[</sub><sub>t</sub><sub>]</sub><sub>−</sub><sub>1</sub>}, where",
+        "result": "在 r<sub>c</sub><sup>[</sup><sup>t</sup> <sup>]</sup> 中，所有噪声元素 r<sup>[</sup><sub>cs-noi</sub><sup>t</sup><sup>]</sup> 里落入 R<sub>comb-search</sub><sup>[</sup><sup>t</sup><sup>]</sup> 的可记为 r<sub>cs-noi</sub><sup>[</sup><sup>t</sup><sup>]</sup> = {r<sub>cs-noi</sub><sup>[</sup><sup>t</sup><sup>]</sup><sub>,</sub><sub>0</sub>, ..., r<sup>[</sup><sub>cs-noi</sub><sup>t</sup><sup>]</sup><sub>,N</sub> <sub>cs-noi</sub><sub>[</sub><sub>t</sub><sub>]</sub><sub>−</sub><sub>1</sub>}，其中",
+        "provider": "magpie",
+        "model": "devin/swe-2"
+      }
+    ]
+  },
+  {
+    "id": "5:22",
+    "text": "the largest element, resulting into a false result. In Fig. 5(f), the sum-weight wsum-weight[2],223 = 2.53 is the largest weight. Then, it turns the signal element (i.e., rc[2],223 = 42.8) into the largest sum-weighted element (i.e., wsum-weight[2],223 × rc[2],223 = 108.3) shown in Fig. 5(i), which brings us a true result.",
+    "textRuns": [
+      {
+        "text": "the largest element, resulting into a false result. In Fig. 5(f), the sum-weight "
+      },
+      {
+        "text": "w",
+        "italic": true,
+        "mathPosition": {
+          "group": "581.810:362.420",
+          "x": 0,
+          "y": 0,
+          "width": 0.715900000000001,
+          "size": 1
+        }
+      },
+      {
+        "text": "sum-weight",
+        "script": "sub",
+        "mathPosition": {
+          "group": "581.810:362.420",
+          "x": 0.7156478972197126,
+          "y": 0.2930844123256007,
+          "width": 3.3053526046371555,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[2]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "581.810:362.420",
+          "x": 0.7427481682224207,
+          "y": -0.5189200040148623,
+          "width": 0.8513277928334811,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "581.810:362.420",
+          "x": 4.020877245809496,
+          "y": 0.2930844123256007,
+          "width": 0.2375065943992784,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "223",
+        "script": "sub",
+        "mathPosition": {
+          "group": "581.810:362.420",
+          "x": 4.25875740238884,
+          "y": 0.2930844123256007,
+          "width": 1.195722854561879,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " = 2"
+      },
+      {
+        "text": ".",
+        "italic": true
+      },
+      {
+        "text": "53 is the largest weight. Then, it turns the signal element (i.e., "
+      },
+      {
+        "text": "r",
+        "italic": true,
+        "mathPosition": {
+          "group": "596.650:444.470",
+          "x": 0,
+          "y": -1.1410904117395969e-14,
+          "width": 0.4511999999999995,
+          "size": 1
+        }
+      },
+      {
+        "text": "c",
+        "script": "sub",
+        "mathPosition": {
+          "group": "596.650:444.470",
+          "x": 0.4506674696376603,
+          "y": 0.26598414132289244,
+          "width": 0.3107955435109896,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[2]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "596.650:444.470",
+          "x": 0.4787714543812087,
+          "y": -0.5199237177557025,
+          "width": 0.8513277928334811,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "596.650:444.470",
+          "x": 0.7618187292984073,
+          "y": 0.26598414132289244,
+          "width": 0.2375065943992784,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "223",
+        "script": "sub",
+        "mathPosition": {
+          "group": "596.650:444.470",
+          "x": 0.9996988858777514,
+          "y": 0.26598414132289244,
+          "width": 1.195722854561879,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " = 42"
+      },
+      {
+        "text": ".",
+        "italic": true
+      },
+      {
+        "text": "8) into the largest sum-weighted element (i.e., "
+      },
+      {
+        "text": "w",
+        "italic": true,
+        "mathPosition": {
+          "group": "611.060:430.590",
+          "x": 0,
+          "y": -2.2821808234791937e-14,
+          "width": 0.715900000000001,
+          "size": 1
+        }
+      },
+      {
+        "text": "sum-weight",
+        "script": "sub",
+        "mathPosition": {
+          "group": "611.060:430.590",
+          "x": 0.7156478972197126,
+          "y": 0.29308441232558924,
+          "width": 3.305352604637161,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[2]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "611.060:430.590",
+          "x": 0.7427481682224207,
+          "y": -0.5189200040148737,
+          "width": 0.8513277928334811,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "611.060:430.590",
+          "x": 4.020877245809496,
+          "y": 0.29308441232558924,
+          "width": 0.2375065943992784,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "223",
+        "script": "sub",
+        "mathPosition": {
+          "group": "611.060:430.590",
+          "x": 4.257753688647999,
+          "y": 0.29308441232558924,
+          "width": 1.195722854561879,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " × "
+      },
+      {
+        "text": "r",
+        "italic": true,
+        "mathPosition": {
+          "group": "611.060:498.680",
+          "x": 0,
+          "y": -1.1410904117395969e-14,
+          "width": 0.4511999999999995,
+          "size": 1
+        }
+      },
+      {
+        "text": "c",
+        "script": "sub",
+        "mathPosition": {
+          "group": "611.060:498.680",
+          "x": 0.4506674696376603,
+          "y": 0.2669878550637326,
+          "width": 0.3107955435109896,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "[2]",
+        "script": "sup",
+        "mathPosition": {
+          "group": "611.060:498.680",
+          "x": 0.4787714543812087,
+          "y": -0.5189200040148623,
+          "width": 0.8513277928334811,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": ",",
+        "script": "sub",
+        "italic": true,
+        "mathPosition": {
+          "group": "611.060:498.680",
+          "x": 0.7618187292984073,
+          "y": 0.2669878550637326,
+          "width": 0.2375065943992784,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": "223",
+        "script": "sub",
+        "mathPosition": {
+          "group": "611.060:498.680",
+          "x": 0.9996988858777514,
+          "y": 0.2669878550637326,
+          "width": 1.195722854561879,
+          "size": 0.6999899628625916
+        }
+      },
+      {
+        "text": " = 108"
+      },
+      {
+        "text": ".",
+        "italic": true
+      },
+      {
+        "text": "3) shown in Fig. 5(i), which brings us a true result."
+      }
+    ],
+    "caches": [
+      {
+        "source": "the largest element, resulting into a false result. In Fig. 5(f), the sum-weight w<sub>sum-weight</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> = 2.53 is the largest weight. Then, it turns the signal element (i.e., r<sub>c</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> = 42.8) into the largest sum-weighted element (i.e., w<sub>sum-weight</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> × r<sub>c</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> = 108.3) shown in Fig. 5(i), which brings us a true result.",
+        "result": "最大元素，从而产生错误结果。在图5(f)中，求和权重 w<sub>sum-weight</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> = 2.53 是最大的权重。于是，它将信号元素（即 r<sub>c</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> = 42.8）转变为图5(i)所示的最大求和加权元素（即 w<sub>sum-weight</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> × r<sub>c</sub><sup>[2]</sup><sub>,</sub><sub>223</sub> = 108.3），从而得到正确结果。",
+        "provider": "magpie",
+        "model": "devin/swe-2"
+      }
+    ]
+  }
+]

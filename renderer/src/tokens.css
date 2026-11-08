@@ -1,0 +1,214 @@
+/* Adapted from IC Agent Harness studio-tokens.css; reader-specific aliases below. */
+:root {
+  --background: #ffffff;
+  --foreground: #191919;
+  --fg-base: #191919;
+  --surface-navigator: #ececee;
+  --sidebar-footer-border: rgb(0 0 0 / .13);
+  --sidebar-footer-seam: rgb(0 0 0 / .029);
+  --surface-paper: #ffffff;
+  --surface-companion: #f7f7f5;
+  --surface-raised: #ffffff;
+  --surface-floating: #f7f7f9;
+  --surface-sunken: #f0f0f2;
+  --surface-input: #ffffff;
+  --window-chrome: #ffffff;
+  --text: #1a1a1a;
+  --text-secondary: #626267;
+  --text-tertiary: #6e6e73;
+  --text-placeholder: #747479;
+  --text-disabled: #9b9ba1;
+  --sidebar-text: rgb(0 0 0 / .9);
+  --sidebar-text-muted: rgb(0 0 0 / .6);
+  --sidebar-text-faint: rgb(0 0 0 / .45);
+  --sidebar-hover: rgb(0 0 0 / .03);
+  --sidebar-selected: rgb(0 0 0 / .0375);
+  --font-sidebar: "Schibsted Grotesk Variable", "Noto Sans SC Variable", "Helvetica Neue", "PingFang SC", sans-serif;
+  --accent: #0066cc;
+  --accent-solid: #0066cc;
+  --accent-raw: #0066cc;
+  --accent-text: #0066cc;
+  --on-accent: #ffffff;
+  --focus-ring: #0066cc;
+  --accent-tint: rgb(0 102 204 / .11);
+  --fill-hover: rgb(0 0 0 / .045);
+  --fill-pressed: rgb(0 0 0 / .075);
+  --fill-selected: #dcdce0;
+  --fill-choice: #e5e5e9;
+  --fill-bubble: #f0f0f2;
+  --bubble-text: #1d1d1f;
+  --bubble-border: transparent;
+  --border-subtle: #e1e1e5;
+  --border: #d2d2d7;
+  --border-strong: #b5b5bc;
+  --border-control: #8e8e93;
+  --border-floating: rgb(0 0 0 / .12);
+  --border-composer: #d9d9de;
+  --border-choice: #77777e;
+  --surface-glass: rgb(236 236 238 / .82);
+  --surface-glass-strong: rgb(248 248 250 / .86);
+  --surface-material: var(--surface-floating);
+  --surface-chrome: rgb(242 242 244 / .78);
+  --material-filter: none;
+  --selection: rgb(0 102 204 / .20);
+  --font-default: "Pimi Inter", "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", system-ui, sans-serif;
+  --font-sans: var(--font-default);
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --text-scale: 1;
+  --tracking-ui: 0;
+  --tracking-display: -.018em;
+  /* Nested surfaces share their inset with the corresponding inner radius. */
+  --radius-control: 8px;
+  --radius-menu: 12px;
+  --radius-panel: 16px;
+  --radius-card: var(--radius-menu);
+  --radius-label: 4px;
+  --radius-content: 2px;
+  --radius-pill: 999px;
+  --control-inset: 3px;
+  --menu-inset: 5px;
+  --radius-segmented: calc(var(--radius-control) + var(--control-inset));
+  --radius-menu-item: calc(var(--radius-menu) - var(--menu-inset));
+  --radius-composer: var(--radius-panel);
+  --radius-xs: var(--radius-label);
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-menu);
+  --radius-xl: var(--radius-panel);
+  --radius-2xl: var(--radius-panel);
+  --icon-stroke: 1.55;
+  --dur-micro: 120ms;
+  --dur-fast: 120ms;
+  --dur-base: 160ms;
+  --dur-slow: 260ms;
+  --dur-exit: var(--dur-fast);
+  --dur-panel: 280ms;
+  --dur-press: 90ms;
+  --dur-selection: 240ms;
+  --dur-tooltip: 300ms;
+  --context-enter: var(--dur-base);
+  --context-exit: var(--dur-fast);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+  --ease-standard: var(--ease-in-out);
+  --ease-out-subtle: var(--ease-out);
+  --ease-studio: var(--ease-out);
+  --context-settle: var(--ease-studio);
+  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / .5);
+  --composer-shadow: 0 1px 2px rgb(25 25 35 / .035), 0 10px 28px -20px rgb(25 25 35 / .24);
+  --context-shadow: 0 18px 48px -18px rgb(25 25 35 / .23), 0 2px 8px rgb(25 25 35 / .04);
+  --menu-shadow: 0 12px 32px -12px rgb(25 25 35 / .18), 0 2px 6px rgb(25 25 35 / .04);
+  --button-shadow: inset 0 1px 0 rgb(255 255 255 / .16), 0 1px 2px rgb(0 40 80 / .10);
+  --button-shadow-hover: inset 0 1px 0 rgb(255 255 255 / .16), 0 1px 3px rgb(0 40 80 / .16);
+  --elev-0: 0 1px 1px rgb(25 25 35 / .04);
+  --elev-1: 0 0 0 1px var(--border-subtle), 0 1px 2px rgb(25 25 35 / .035);
+  --elev-2: 0 0 0 1px var(--border-floating), var(--context-shadow);
+  --elev-3: 0 0 0 1px var(--border-floating), 0 24px 60px -18px rgb(25 25 35 / .28);
+  --glass-blur: blur(28px) saturate(135%);
+  --glass-blur-strong: blur(30px) saturate(140%);
+  --scrim: rgb(30 30 36 / .22);
+  --git-merged: #6e6e73;
+}
+[data-theme='dark'] {
+  --background: #1d1d1f;
+  --foreground: #f1f1f3;
+  --fg-base: #f1f1f3;
+  --surface-navigator: #232325;
+  --sidebar-footer-border: rgb(255 255 255 / .12);
+  --sidebar-footer-seam: rgb(255 255 255 / .027);
+  --surface-paper: #1d1d1f;
+  --surface-companion: #242426;
+  --surface-raised: #28282b;
+  --surface-floating: #29292c;
+  --surface-sunken: #242426;
+  --surface-input: #29292c;
+  --window-chrome: #1d1d1f;
+  --text: #f1f1f3;
+  --text-secondary: #b9b9bf;
+  --text-tertiary: #9b9ba2;
+  --text-placeholder: #9999a1;
+  --text-disabled: #696970;
+  --sidebar-text: rgb(255 255 255 / .84);
+  --sidebar-text-muted: rgb(255 255 255 / .56);
+  --sidebar-text-faint: rgb(255 255 255 / .42);
+  --sidebar-hover: rgb(255 255 255 / .05);
+  --sidebar-selected: rgb(255 255 255 / .075);
+  --accent: #4a9cec;
+  --accent-solid: #0066cc;
+  --accent-raw: #4a9cec;
+  --accent-text: #76b4f3;
+  --on-accent: #ffffff;
+  --focus-ring: #76b4f3;
+  --accent-tint: rgb(74 156 236 / .16);
+  --fill-hover: rgb(255 255 255 / .055);
+  --fill-pressed: rgb(255 255 255 / .09);
+  --fill-selected: #414145;
+  --fill-choice: #3d3d42;
+  --fill-bubble: #38383c;
+  --bubble-text: #f1f1f3;
+  --bubble-border: rgb(255 255 255 / .07);
+  --border-subtle: #36363a;
+  --border: #45454b;
+  --border-strong: #65656e;
+  --border-control: #81818c;
+  --border-floating: rgb(255 255 255 / .13);
+  --border-composer: #48484e;
+  --border-choice: #94949e;
+  --surface-glass: rgb(35 35 37 / .88);
+  --surface-glass-strong: rgb(41 41 44 / .88);
+  --surface-chrome: rgb(35 35 37 / .82);
+  --selection: rgb(74 156 236 / .28);
+  --edge-highlight: inset 0 1px 0 rgb(255 255 255 / .055);
+  --composer-shadow: 0 1px 2px rgb(0 0 0 / .18), 0 10px 26px -16px rgb(0 0 0 / .45);
+  --context-shadow: 0 18px 48px -16px rgb(0 0 0 / .60), 0 2px 8px rgb(0 0 0 / .18);
+  --menu-shadow: 0 12px 32px -10px rgb(0 0 0 / .55);
+  --button-shadow: inset 0 1px 0 rgb(255 255 255 / .12), 0 1px 2px rgb(0 0 0 / .2);
+  --button-shadow-hover: var(--button-shadow);
+  --elev-1: 0 0 0 1px var(--border-subtle);
+  --scrim: rgb(0 0 0 / .48);
+}
+
+:root {
+ --bg: var(--surface-paper); --bg-sidebar: var(--surface-navigator); --surface: var(--surface-raised);
+ --surface-2: var(--surface-sunken); --text-2: var(--text-secondary); --text-3: var(--text-tertiary);
+ --accent-soft: var(--accent-tint); --danger: #c03636; --danger-soft: #fff0f0;
+ --shadow-sm: var(--elev-0); --shadow-md: var(--context-shadow);
+ --sans: var(--font-default); --mono: var(--font-mono);
+ --serif: 'Iowan Old Style', Georgia, 'Songti SC', 'Noto Serif CJK SC', 'Times New Roman', serif;
+ --rail: 260px; --panel: 292px; --toolbar-h: 50px; --header-h: 50px;
+ --hl-yellow: rgba(255, 220, 110, .55); --hl-green: rgba(137, 219, 169, .45); --hl-blue: rgba(143, 186, 255, .45);
+ --hl-pink: rgba(255, 163, 204, .40); --hl-purple: rgba(176, 158, 248, .40);
+}
+[data-theme='dark'] { color-scheme: dark; --danger: #f18a8a; --danger-soft: #3a2426;
+ --hl-yellow: rgba(255,220,110,.25); --hl-green: rgba(137,219,169,.25); --hl-blue: rgba(143,186,255,.25);
+ --hl-pink: rgba(255,163,204,.25); --hl-purple: rgba(176,158,248,.28); }
+
+
+/* Only window chrome reveals the native NSVisualEffectView; reading paper stays solid. */
+:root[data-native-vibrancy="true"],
+:root[data-native-vibrancy="true"] body,
+:root[data-native-vibrancy="true"] #root,
+:root[data-native-vibrancy="true"] .app,
+:root[data-native-vibrancy="true"] .reader-main { background: transparent; }
+:root[data-native-vibrancy="true"] :is(.rail, .reader-main > .toolbar, .reader-controls) {
+  background: var(--surface-chrome);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* A single material contract also covers portal menus and closing snapshots. */
+:root[data-reduce-transparency="true"] {
+  --surface-material: var(--surface-floating);
+  --surface-chrome: var(--surface-navigator);
+  --material-filter: none;
+  background: var(--surface-paper);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    --surface-material: var(--surface-floating);
+    --surface-chrome: var(--surface-navigator);
+    --material-filter: none;
+  }
+  :root[data-native-vibrancy="true"] { background: var(--surface-paper); }
+}

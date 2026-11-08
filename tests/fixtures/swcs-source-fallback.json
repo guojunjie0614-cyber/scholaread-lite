@@ -1,0 +1,636 @@
+{
+  "description": "Original SWCS PDF page 5 first black-square list line, text items and embedded MSAM10 font; U+0004 maps through U+E000 to the CFF glyph squaresolid.",
+  "page": 5,
+  "viewport": {
+    "width": 612,
+    "height": 792,
+    "transform": [
+      1,
+      0,
+      0,
+      -1,
+      0,
+      792
+    ]
+  },
+  "items": [
+    {
+      "str": "",
+      "dir": "ltr",
+      "width": 0,
+      "height": 0,
+      "transform": [
+        9.963,
+        0,
+        0,
+        9.963,
+        58.92,
+        696.33
+      ],
+      "fontName": "g_d0_f12",
+      "hasEOL": true
+    },
+    {
+      "str": "\u0004",
+      "dir": "ltr",
+      "width": 7.7492214,
+      "height": 9.963,
+      "transform": [
+        9.963,
+        0,
+        0,
+        9.963,
+        58.92,
+        696.33
+      ],
+      "fontName": "g_d0_f12",
+      "hasEOL": false
+    },
+    {
+      "str": " ",
+      "dir": "ltr",
+      "width": 3.7407785999999987,
+      "height": 0,
+      "transform": [
+        9.963,
+        0,
+        0,
+        9.963,
+        66.6692214,
+        696.33
+      ],
+      "fontName": "g_d0_f12",
+      "hasEOL": false
+    },
+    {
+      "str": "By combing",
+      "dir": "ltr",
+      "width": 50.233445999999994,
+      "height": 9.963,
+      "transform": [
+        9.963,
+        0,
+        0,
+        9.963,
+        70.41,
+        696.33
+      ],
+      "fontName": "g_d0_f1",
+      "hasEOL": false
+    },
+    {
+      "str": " ",
+      "dir": "ltr",
+      "width": 3.7465540000000175,
+      "height": 0,
+      "transform": [
+        9.963,
+        0,
+        0,
+        9.963,
+        120.64344599999998,
+        696.33
+      ],
+      "fontName": "g_d0_f1",
+      "hasEOL": false
+    },
+    {
+      "str": "p",
+      "dir": "ltr",
+      "width": 5.0123853,
+      "height": 9.963,
+      "transform": [
+        9.963,
+        0,
+        0,
+        9.963,
+        124.39,
+        696.33
+      ],
+      "fontName": "g_d0_f3",
+      "hasEOL": false
+    },
+    {
+      "str": "[",
+      "dir": "ltr",
+      "width": 2.2553916,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        129.4,
+        701.5
+      ],
+      "fontName": "g_d0_f4",
+      "hasEOL": false
+    },
+    {
+      "str": "t",
+      "dir": "ltr",
+      "width": 3.0099784,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        131.65,
+        701.5
+      ],
+      "fontName": "g_d0_f5",
+      "hasEOL": false
+    },
+    {
+      "str": "]",
+      "dir": "ltr",
+      "width": 2.2553916,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        134.66,
+        701.5
+      ],
+      "fontName": "g_d0_f4",
+      "hasEOL": false
+    },
+    {
+      "str": "",
+      "dir": "ltr",
+      "width": 0,
+      "height": 0,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        129.4,
+        692.93
+      ],
+      "fontName": "g_d0_f1",
+      "hasEOL": true
+    },
+    {
+      "str": "CS-sig",
+      "dir": "ltr",
+      "width": 18.990202000000004,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        129.4,
+        692.93
+      ],
+      "fontName": "g_d0_f1",
+      "hasEOL": false
+    },
+    {
+      "str": ",k",
+      "dir": "ltr",
+      "width": 6.6015884,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        148.39,
+        692.93
+      ],
+      "fontName": "g_d0_f5",
+      "hasEOL": false
+    },
+    {
+      "str": "0",
+      "dir": "ltr",
+      "width": 3.3900686,
+      "height": 4.981,
+      "transform": [
+        4.981,
+        0,
+        0,
+        4.981,
+        154.99,
+        691.94
+      ],
+      "fontName": "g_d0_f9",
+      "hasEOL": false
+    },
+    {
+      "str": "...k",
+      "dir": "ltr",
+      "width": 11.3341448,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        158.88,
+        692.93
+      ],
+      "fontName": "g_d0_f5",
+      "hasEOL": false
+    },
+    {
+      "str": "T",
+      "dir": "ltr",
+      "width": 4.1456862999999995,
+      "height": 4.981,
+      "transform": [
+        4.981,
+        0,
+        0,
+        4.981,
+        170.20999999999998,
+        691.93
+      ],
+      "fontName": "g_d0_f10",
+      "hasEOL": false
+    },
+    {
+      "str": " ",
+      "dir": "ltr",
+      "width": 0.8643136999999967,
+      "height": 0,
+      "transform": [
+        4.981,
+        0,
+        0,
+        4.981,
+        174.3556863,
+        691.93
+      ],
+      "fontName": "g_d0_f10",
+      "hasEOL": false
+    },
+    {
+      "str": "−",
+      "dir": "ltr",
+      "width": 5.3959173,
+      "height": 4.981,
+      "transform": [
+        4.981,
+        0,
+        0,
+        4.981,
+        175.22,
+        691.93
+      ],
+      "fontName": "g_d0_f11",
+      "hasEOL": false
+    },
+    {
+      "str": "1",
+      "dir": "ltr",
+      "width": 3.3900686,
+      "height": 4.981,
+      "transform": [
+        4.981,
+        0,
+        0,
+        4.981,
+        180.62,
+        691.93
+      ],
+      "fontName": "g_d0_f9",
+      "hasEOL": false
+    },
+    {
+      "str": "\\",
+      "dir": "ltr",
+      "width": 4.0818822,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        184.51,
+        692.93
+      ],
+      "fontName": "g_d0_f8",
+      "hasEOL": false
+    },
+    {
+      "str": "k",
+      "dir": "ltr",
+      "width": 4.2353102,
+      "height": 6.974,
+      "transform": [
+        6.974,
+        0,
+        0,
+        6.974,
+        188.59,
+        692.93
+      ],
+      "fontName": "g_d0_f5",
+      "hasEOL": false
+    },
+    {
+      "str": "t",
+      "dir": "ltr",
+      "width": 2.8077897000000003,
+      "height": 4.981,
+      "transform": [
+        4.981,
+        0,
+        0,
+        4.981,
+        192.82,
+        691.94
+      ],
+      "fontName": "g_d0_f10",
+      "hasEOL": false
+    },
+    {
+      "str": " ",
+      "dir": "ltr",
+      "width": 4.742210300000011,
+      "height": 0,
+      "transform": [
+        4.981,
+        0,
+        0,
+        4.981,
+        195.6277897,
+        691.94
+      ],
+      "fontName": "g_d0_f10",
+      "hasEOL": false
+    },
+    {
+      "str": "(shown in Eq. (24)) and",
+      "dir": "ltr",
+      "width": 99.64992599999997,
+      "height": 9.963,
+      "transform": [
+        9.963,
+        0,
+        0,
+        9.963,
+        200.37,
+        696.33
+      ],
+      "fontName": "g_d0_f1",
+      "hasEOL": false
+    },
+    {
+      "str": "+$",
+      "dir": "ltr",
+      "width": 4.562980277789427,
+      "height": 6.079920723179808,
+      "transform": [
+        6.079920723179808,
+        0,
+        0,
+        6.079920723179808,
+        330.8281110212213,
+        691.9547291070804
+      ],
+      "fontName": "g_d0_f18",
+      "hasEOL": true
+    },
+    {
+      "str": "",
+      "dir": "ltr",
+      "width": 0,
+      "height": 0,
+      "transform": [
+        6.079920723179808,
+        0,
+        0,
+        6.079920723179808,
+        363.5078112546582,
+        695.7924289953176
+      ],
+      "fontName": "g_d0_f18",
+      "hasEOL": true
+    },
+    {
+      "str": "3..-/0\"1",
+      "dir": "ltr",
+      "width": 23.191195191206578,
+      "height": 6.079920723179808,
+      "transform": [
+        6.079920723179808,
+        0,
+        0,
+        6.079920723179808,
+        363.5078112546582,
+        695.7924289953176
+      ],
+      "fontName": "g_d0_f18",
+      "hasEOL": false
+    },
+    {
+      "str": "+$",
+      "dir": "ltr",
+      "width": 4.235494108366041,
+      "height": 5.662415437467889,
+      "transform": [
+        5.662415437467889,
+        0,
+        0,
+        5.662415437467889,
+        456.53552401187795,
+        694.8255563378231
+      ],
+      "fontName": "g_d0_f18",
+      "hasEOL": false
+    },
+    {
+      "str": " ",
+      "dir": "ltr",
+      "width": 176.14156580121997,
+      "height": 0,
+      "transform": [
+        5.662415437467889,
+        0,
+        0,
+        5.662415437467889,
+        460.771018120244,
+        694.8255563378231
+      ],
+      "fontName": "g_d0_f18",
+      "hasEOL": false
+    },
+    {
+      "str": "+%\"&",
+      "dir": "ltr",
+      "width": 12.150424748023479,
+      "height": 6.926369199826793,
+      "transform": [
+        6.9300401755027,
+        0,
+        0,
+        6.926369199826793,
+        537.3752209906429,
+        700.2018936743104
+      ],
+      "fontName": "g_d0_f18",
+      "hasEOL": false
+    },
+    {
+      "str": "",
+      "dir": "ltr",
+      "width": 3.804592056350983,
+      "height": 6.926369199826793,
+      "transform": [
+        6.9300401755027,
+        0,
+        0,
+        6.926369199826793,
+        528.5798333956864,
+        700.2018936743104
+      ],
+      "fontName": "g_d0_f19",
+      "hasEOL": false
+    },
+    {
+      "str": "p",
+      "dir": "ltr",
+      "width": 4.123135477721366,
+      "height": 8.237292306828287,
+      "transform": [
+        8.246270955442732,
+        0,
+        0,
+        8.237292306828287,
+        532.4678513688787,
+        689.5559437899958
+      ],
+      "fontName": "g_d0_f20",
+      "hasEOL": false
+    }
+  ],
+  "styles": {
+    "g_d0_f12": {
+      "fontFamily": "monospace",
+      "ascent": 0,
+      "descent": 0,
+      "vertical": false
+    },
+    "g_d0_f1": {
+      "fontFamily": "serif",
+      "ascent": 0.683,
+      "descent": -0.217,
+      "vertical": false
+    },
+    "g_d0_f3": {
+      "fontFamily": "serif",
+      "ascent": 0.694,
+      "descent": -0.194,
+      "vertical": false
+    },
+    "g_d0_f4": {
+      "fontFamily": "serif",
+      "ascent": 0.694,
+      "descent": -0.194,
+      "vertical": false
+    },
+    "g_d0_f5": {
+      "fontFamily": "serif",
+      "ascent": 0.694,
+      "descent": -0.194,
+      "vertical": false
+    },
+    "g_d0_f9": {
+      "fontFamily": "serif",
+      "ascent": 0.694,
+      "descent": -0.194,
+      "vertical": false
+    },
+    "g_d0_f10": {
+      "fontFamily": "serif",
+      "ascent": 0.694,
+      "descent": -0.194,
+      "vertical": false
+    },
+    "g_d0_f11": {
+      "fontFamily": "serif",
+      "ascent": 0,
+      "descent": 0,
+      "vertical": false
+    },
+    "g_d0_f8": {
+      "fontFamily": "serif",
+      "ascent": 0,
+      "descent": 0,
+      "vertical": false
+    },
+    "g_d0_f18": {
+      "fontFamily": "sans-serif",
+      "ascent": 0.678,
+      "descent": -0.198,
+      "vertical": false
+    },
+    "g_d0_f19": {
+      "fontFamily": "sans-serif",
+      "ascent": 0.625,
+      "descent": 0,
+      "vertical": false
+    },
+    "g_d0_f20": {
+      "fontFamily": "sans-serif",
+      "ascent": 0.625,
+      "descent": -0.214,
+      "vertical": false
+    }
+  },
+  "fonts": {
+    "g_d0_f12": {
+      "name": "NYJTOE+MSAM10",
+      "composite": false,
+      "differences": [],
+      "toFontChar": [
+        null,
+        null,
+        null,
+        null,
+        57344
+      ],
+      "dataBase64": "T1RUTwAJAIAAAwAQQ0ZGIK63Pw4AAACcAAABT09TLzICJCm/AAAB7AAAAGBjbWFwAAzgMwAAAkwAAAAsaGVhZKsnT1gAAAJ4AAAANmhoZWED7f4zAAACsAAAACRobXR4AwkAAAAAAtQAAAAMbWF4cAADUAAAAALgAAAABm5hbWUpWDMAAAAC6AAAAitwb3N0AAMAAAAABRQAAAAgAQAEBAABAQEOTllKVE9FK01TQU0xMAABAQE2+BwA+B0B+B4C+B8D+BcEk/xjHAUz+n8FHQAAAOoPHQAAAOYQHQAAAO8RHQAAACMdAAABKxIABQEBDBOBh4xzcXVhcmVzb2xpZDAwMy4wMDJDb3B5cmlnaHQgKGMpIDE5OTcsIDIwMDkgQW1lcmljYW4gTWF0aGVtYXRpY2FsIFNvY2lldHkgKDxodHRwOi8vd3d3LmFtcy5vcmc+KSwgd2l0aCBSZXNlcnZlZCBGb250IE5hbWUgTVNBTTEwLk1TQU0xMEV1bGVyAAABAQQAAAAAAYcAAwEBBDM2+IgO+Z2LoPkanwHD+S0D+WX5IBWqiI9rHvznBmyHiGsf/PwHa46HrB745Qasjo6rHw74iA51ofillfchmwb7YpcHHgoEN58MCbMKswukmgwMpJoMDffhFAAAAAMCJAH0AAUAAAKKArsAAACMAooCuwAAAd8AMQECAAAAAAYAAAAAAAAAAAAAABAAAAAAAAAAAAAAACoyMSoAAOAA4AAD6/4xAGQD6wHPAAAAAAAAAAAAAAAAAADgAAADAAAAAQADAAEAAAAMAAQAIAAAAAQABAABAADgAP//AADgAP//IAEAAQAAAAAAAQAAAAAQAAAAAABfDzz1AAAD6AAAAACeC34nAAAAAJ4LficAAP4xD/8D6wAAABEAAAAAAAAAAAABAAAD6/4xAAD//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAADCQAAAAAAAAAAUAAAAwAAAAAAFAD2AAEAAAAAAAAAEAAAAAEAAAAAAAEADQAQAAEAAAAAAAIABwAdAAEAAAAAAAMACAAkAAEAAAAAAAQADQAsAAEAAAAAAAUADAA5AAEAAAAAAAYADQBFAAEAAAAAAAcABwBSAAEAAAAAAAgABwBZAAEAAAAAAAkABwBgAAMAAQQJAAAAIABnAAMAAQQJAAEAGgCHAAMAAQQJAAIADgChAAMAAQQJAAMAEACvAAMAAQQJAAQAGgC/AAMAAQQJAAUAGADZAAMAAQQJAAYAGgDxAAMAAQQJAAcADgELAAMAAQQJAAgADgEZAAMAAQQJAAkADgEnT3JpZ2luYWwgbGljZW5jZU5ZSlRPRStNU0FNMTBVbmtub3dudW5pcXVlSUROWUpUT0UrTVNBTTEwVmVyc2lvbiAwLjExTllKVE9FK01TQU0xMFVua25vd25Vbmtub3duVW5rbm93bgBPAHIAaQBnAGkAbgBhAGwAIABsAGkAYwBlAG4AYwBlAE4AWQBKAFQATwBFACsATQBTAEEATQAxADAAVQBuAGsAbgBvAHcAbgB1AG4AaQBxAHUAZQBJAEQATgBZAEoAVABPAEUAKwBNAFMAQQBNADEAMABWAGUAcgBzAGkAbwBuACAAMAAuADEAMQBOAFkASgBUAE8ARQArAE0AUwBBAE0AMQAwAFUAbgBrAG4AbwB3AG4AVQBuAGsAbgBvAHcAbgBVAG4AawBuAG8AdwBuAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "g_d0_f1": {
+      "name": "RDDULK+NimbusRomNo9L-Regu"
+    },
+    "g_d0_f3": {
+      "name": "XCOURP+CMMI10"
+    },
+    "g_d0_f4": {
+      "name": "ADDCWN+CMR7"
+    },
+    "g_d0_f5": {
+      "name": "EJGTXN+CMMI7"
+    },
+    "g_d0_f9": {
+      "name": "XUCKDP+CMR5"
+    },
+    "g_d0_f10": {
+      "name": "PBSATH+CMMI5"
+    },
+    "g_d0_f11": {
+      "name": "IZNGFW+CMSY5"
+    },
+    "g_d0_f8": {
+      "name": "QLGQYC+CMSY7"
+    },
+    "g_d0_f18": {
+      "name": "TPKGZJ+TimesNewRomanPSMT"
+    },
+    "g_d0_f19": {
+      "name": "QUQXBG+SymbolMT"
+    },
+    "g_d0_f20": {
+      "name": "GJOHUO+TimesNewRomanPS-ItalicMT"
+    }
+  }
+}
