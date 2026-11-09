@@ -8,7 +8,7 @@ import { readPdfMetadata } from './pdf-metadata.js';
 import { createMetadataBackfill } from './metadata-backfill.js';
 import { resolvePaperFile, storePdf } from './paths.js';
 import { settings } from './settings.js';
-import { magpieModels } from './magpie.js';
+import { magpieModels, providerModels } from './magpie.js';
 import { recognizeFormula } from './formula-ocr.js';
 import { recognizeText } from './ocr.js';
 import { registerTranslationIpc } from './translation-ipc.js';
@@ -267,6 +267,10 @@ export function registerIpc() {
   ipcMain.handle('settings:magpieModels', (_e, baseUrl: string) => {
     if (typeof baseUrl !== 'string') throw new Error('Magpie 网关地址必须是文本');
     return magpieModels(baseUrl);
+  });
+  ipcMain.handle('settings:providerModels', (_e, provider: string, config: { baseUrl?: string; apiKey?: string }) => {
+    if (typeof provider !== 'string' || !provider) throw new Error('服务提供方无效');
+    return providerModels(provider, config ?? {});
   });
 
   // ── 翻译 ──────────────────────────────────────────────

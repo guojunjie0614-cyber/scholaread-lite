@@ -3,7 +3,8 @@ import { isReferenceHeading } from '@shared/reading-content';
 
 /** Bibliographic punctuation is stronger evidence than an initial such as "J.". */
 export function isBibliographicLine(text: string): boolean {
-  return /\b(?:vol(?:ume)?\.?\s*\d|no\.\s*\d|pp?\.\s*\d|doi\s*:|ISBN\b|https?:\/\/|in\s+Proc\.)/i.test(text);
+  return /\b(?:vol(?:ume)?\.?\s*\d|no\.\s*\d|pp?\.\s*\d|doi\s*:|ISBN\b|https?:\/\/|in\s+Proc\.)/i.test(text) ||
+    /^(?:[A-Z]\.\s*-[A-Z]\.\s+|[A-Z]\.\s+(?:[A-Z]\.\s+)+[A-Z][\p{L}'’−-]+|[A-Z]\.\s+[A-Z][\p{L}'’−-]+,\s+(?:and\s+)?[A-Z]\.)/u.test(text);
 }
 
 /** A citation marker is not a bibliography entry without author/publishing evidence. */

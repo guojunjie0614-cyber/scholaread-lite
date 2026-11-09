@@ -66,7 +66,7 @@ export function extractTableNotes(
       const marked = MARKER.test(line.text);
       if (!previous) {
         const gap = line.y0 - table.y1;
-        if (gap < -1 || gap > bodySize) break;
+        if (gap < -2.5 || gap > bodySize) break;
         const aligned = Math.abs(line.x0 - table.x0) <= bodySize * .8;
         const unmarkedEvidence = aligned && gap <= bodySize * .65 && line.size <= bodySize * .88;
         if (!marked && !unmarkedEvidence) break;

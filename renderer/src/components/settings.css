@@ -59,6 +59,8 @@
 .reader-settings .appearance-preview figcaption { margin-top: 10px; color: var(--text-2); font-size: 12px; }
 .reader-settings .gateway-model-control { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .reader-settings .gateway-model-control .settings-menu { flex: 1; min-width: 0; }
+.reader-settings .provider-model-control > input { flex: 1; min-width: 0; }
+.reader-settings .provider-model-control .provider-model-picker { flex: none; width: auto; gap: 4px; padding-inline: 8px; }
 .reader-settings .gateway-refresh { flex: none; padding-inline: 7px; font-size: 12px; }
 .reader-settings .settings-field .gateway-error { color: var(--danger); }
 .reader-settings .settings-error { flex: 1; margin: 0; color: var(--danger); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }

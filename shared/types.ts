@@ -285,6 +285,7 @@ export interface LiteApi {
     set(patch: DeepPartial<Settings>): Promise<Settings>;
     providers(): Promise<ProviderInfo[]>;
     magpieModels(baseUrl: string): Promise<ProviderModel[]>;
+    providerModels(provider: string, config: { baseUrl?: string; apiKey?: string }): Promise<ProviderModel[]>;
   };
   translate: {
     cached(texts: string[], target: string): Promise<(CachedTranslation | null)[]>;

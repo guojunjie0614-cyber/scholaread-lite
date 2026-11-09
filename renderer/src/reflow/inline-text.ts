@@ -17,10 +17,44 @@ const extensionOperator = (item: RawItem) => MATH_EXTENSION_FONT.test(item.font)
 
 const ACCENT = /^[\u0300-\u036f\u20ddˆ˙¯˜]+$/;
 
+/**
+ * PDF.js emits synthetic " " items across font switches (e.g., Small Caps `I` + `NTRODUCTION`,
+ * `-G` + `RAINED`, or subscripts `I` + `i`, `act` + `,`) even when the true page-point gap
+ * between the adjacent ink items is <= 0.55pt. Share the exact threshold and filter between
+ * `joinItems` and `lineTextRuns` so `block.textRuns` always matches `block.text`.
+ */
+export function spaceThreshold(prevInk: RawItem | null, nextInk: RawItem): number {
+  if (prevInk && Math.abs(nextInk.y - prevInk.y) <= 1.5) {
+    if ((/(?:^|[\s(\-/])[A-Z]$/.test(prevInk.str) && /^[A-Z]/.test(nextInk.str) &&
+        nextInk.h >= prevInk.h * .68 && nextInk.h <= prevInk.h * .88) ||
+        (/[A-Z]$/.test(prevInk.str) && /^-[A-Z]/.test(nextInk.str)))
+      return Math.max(1.2, prevInk.h * .20);
+    if (/^[.,;:!?)]/.test(nextInk.str.trim()))
+      return Math.max(1.2, Math.max(prevInk.h, nextInk.h) * .20);
+  }
+  return Math.max(.5, nextInk.h * .13);
+}
+
+export function filterSubSpaceItems(sorted: RawItem[]): RawItem[] {
+  return sorted.filter((it, idx) => {
+    if (/\S/.test(it.str)) return true;
+    let prev: RawItem | null = null;
+    for (let k = idx - 1; k >= 0; k--) {
+      if (/\S/.test(sorted[k].str)) { prev = sorted[k]; break; }
+    }
+    let next: RawItem | null = null;
+    for (let k = idx + 1; k < sorted.length; k++) {
+      if (/\S/.test(sorted[k].str)) { next = sorted[k]; break; }
+    }
+    if (!prev || !next) return false;
+    return next.x - (prev.x + prev.w) > spaceThreshold(prev, next);
+  });
+}
+
 /** Keep canonical source text, with independent geometry for overlapping scripts. */
 export function lineTextRuns(line: InlineLine, tableMarker = false): TextRun[] {
   const runs: TextRun[] = [];
-  const ordered = [...line.items].sort((a, b) => a.x - b.x);
+  const ordered = filterSubSpaceItems([...line.items].sort((a, b) => a.x - b.x));
   const scripts = new Map<RawItem, 'sub' | 'sup'>();
   for (const item of ordered) {
     const marker = tableMarker && item === ordered.find(it => it.str.trim()) && /^(?:[*∗†‡§¶]|notes?\s*[:.]|注\s*[:：])/i.test(item.str.trim());
@@ -66,9 +100,10 @@ export function lineTextRuns(line: InlineLine, tableMarker = false): TextRun[] {
     groups.set(root, { id: `${line.y.toFixed(3)}:${root.x.toFixed(3)}`, x: root.x + root.w - width, suffix, prefix, width });
   }
   let end = -Infinity;
+  let prevInk: RawItem | null = null;
   for (const item of ordered) {
     const previous = runs.at(-1)?.text ?? '';
-    if (runs.length && item.x - end > Math.max(.5, item.h * .13) &&
+    if (runs.length && /\S/.test(item.str) && item.x - end > spaceThreshold(prevInk, item) &&
       !/\s$/.test(previous) && !/^\s/.test(item.str)) append(runs, ' ');
     const style: Omit<TextRun, 'text'> = {};
     if (scripts.has(item)) style.script = scripts.get(item);
@@ -99,6 +134,7 @@ export function lineTextRuns(line: InlineLine, tableMarker = false): TextRun[] {
       }
     }
     end = Math.max(end, item.x + item.w);
+    if (/\S/.test(item.str)) prevInk = item;
   }
   while (runs.length && /\s$/.test(runs.at(-1)!.text)) {
     const last = runs.at(-1)!;

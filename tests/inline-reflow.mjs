@@ -145,7 +145,7 @@ try {
   ]), 1, 'preprint', { keepFigures: true });
   assert(preprint.some(block => block.readingRole === 'authors' && block.text.includes('Alice Wang')));
   assert(preprint.some(block => block.readingRole === 'affiliations' && block.text.includes('Example Networks')));
-  assert.equal(REFLOW_ENGINE_VERSION, 30, 'older cached blocks must be reparsed');
+  assert.equal(REFLOW_ENGINE_VERSION, 31, 'older cached blocks must be reparsed');
   for (const [pageNumber, label] of [[2, 'ISSCC 2025 / February 18, 2025 / 10:05 AM'],
     [3, 'ISSCC 2025 PAPER CONTINUATIONS AND REFERENCES']]) {
     const later = await analyzePage(page([

@@ -133,6 +133,8 @@ const api = {
     set: (patch: DeepPartial<Settings>) => invoke<Settings>('settings:set', patch),
     providers: () => invoke<ProviderInfo[]>('settings:providers'),
     magpieModels: (baseUrl: string) => invoke<ProviderModel[]>('settings:magpieModels', baseUrl),
+    providerModels: (provider: string, config: { baseUrl?: string; apiKey?: string }) =>
+      invoke<ProviderModel[]>('settings:providerModels', provider, config),
   },
   translate: {
     cached: (texts: string[], target: string) => invoke<(CachedTranslation | null)[]>('translate:cached', texts, target),

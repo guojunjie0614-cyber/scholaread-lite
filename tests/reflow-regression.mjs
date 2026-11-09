@@ -607,6 +607,76 @@ try {
     assert(Math.abs(regions[0].x0 - 80) <= 1 && Math.abs(regions[0].y0 - 120) <= 1);
     assert.equal(regions[0].parts, 210000);
   });
+  await check('segmented IEEE table with narrow end-column rules and Small Caps superscript caption stays one unclipped table (Issue #1)', async () => {
+    const items = [
+      item('TABLE III', 287.4, 71.7, 37.2, 8),
+      item('D', 221.3, 81.2, 5.8, 8),
+      item(' ', 227.1, 81.2, 0.06, 6.4),
+      item('ETAILED', 227.3, 81.2, 32.3, 6.4),
+      item(' C', 259.6, 81.2, 7.6, 8),
+      item('OMPARISONS WITH', 267.3, 81.2, 68.5, 6.4),
+      item(' R', 335.8, 81.2, 7.6, 8),
+      item('ELATED', 343.6, 81.2, 28.5, 6.4),
+      item(' W', 372.1, 81.2, 9.6, 8),
+      item('ORKS', 381.9, 81.2, 19.7, 6.4),
+      item('∗', 401.6, 77.7, 3.6, 6.8),
+      item('Method', 62.6, 94.3, 28.0, 8),
+      item('Block', 531.6, 94.3, 21.0, 8),
+      item('Row 1 data left', 62.6, 118.0, 80.0, 8),
+      item('Row 1 data right', 501.0, 118.0, 48.0, 8),
+      item('Row 2 data left', 62.6, 155.0, 80.0, 8),
+      item('Row 2 data right', 501.0, 155.0, 48.0, 8),
+    ];
+    for (let i = 0; i < 10; i++) {
+      items.push(item(`Left column body text row ${i} below the table.`, 49, 230 + i * 14, 245, 10));
+      items.push(item(`Right column body text row ${i} below the table.`, 312, 230 + i * 14, 245, 10));
+    }
+    const rules = [
+      // Top rule segmented into 9 pieces including narrow right-most segment (526..552, width 26pt < 30pt)
+      [59.6, 99.6, 144.3, 99.6], [144.3, 99.6, 230.0, 99.6], [230.0, 99.6, 360.0, 99.6],
+      [360.0, 99.6, 488.3, 99.6], [488.3, 99.6, 526.2, 99.6], [526.2, 99.6, 552.4, 99.6],
+      // Partial mid-rule (cline)
+      [144.3, 130.0, 488.3, 130.0],
+      // Full mid-rule segmented
+      [59.6, 142.0, 360.0, 142.0], [360.0, 142.0, 526.2, 142.0], [526.2, 142.0, 552.4, 142.0],
+      // Bottom rule segmented
+      [59.6, 172.0, 360.0, 172.0], [360.0, 172.0, 526.2, 172.0], [526.2, 172.0, 552.4, 172.0],
+    ];
+    const blocks = await analyzePage(page(items, rules), 12, 'issue-1-table', { keepFigures: true });
+    const captions = blocks.filter(b => b.kind === 'caption');
+    assert.equal(captions.length, 1);
+    assert.equal(captions[0].text, 'TABLE III DETAILED COMPARISONS WITH RELATED WORKS∗');
+    assert(!captions[0].text.includes('Method'), 'table column header must not be swallowed into caption');
+    const tables = blocks.filter(b => b.kind === 'table');
+    assert.equal(tables.length, 1);
+    assert.equal(blocks.filter(b => b.kind === 'figure').length, 0, 'table must not split into figure + table');
+    assert(tables[0].crop[0] <= 60 && tables[0].crop[2] >= 552, `table crop must span full width: ${JSON.stringify(tables[0].crop)}`);
+    assert(tables[0].crop[1] <= 90 && tables[0].crop[3] >= 172, `table crop must span header to bottom rule: ${JSON.stringify(tables[0].crop)}`);
+  });
+  await check('Small Caps synthetic spaces and line-end hyphenations are normalized cleanly (Issue #4)', async () => {
+    const blocks = await analyzePage(page([
+      item('I.', 110, 80, 7, 10),
+      item(' ', 117, 80, 0, 10),
+      item('I', 121, 80, 4.2, 10),
+      item(' ', 125.2, 80, 0.06, 8),
+      item('NTRODUCTION', 125.4, 80, 62, 8),
+      item('We evaluate high-dimen-', 49, 110, 245, 10),
+      item('sional data and perfor-', 49, 122, 245, 10),
+      item('mance in a candidate-', 49, 134, 245, 10),
+      item('record architecture with Q =', 49, 146, 245, 10),
+      item('Q. In this setup, we keep high-', 49, 158, 245, 10),
+      item('dynamic signals intact.', 49, 170, 200, 10),
+    ]), 2, 'issue-4-text', { keepFigures: true });
+    assert.equal(blocks[0].kind, 'h2');
+    assert.equal(blocks[0].text, 'I. INTRODUCTION');
+    assert.equal(blocks[0].textRuns.map(r => r.text).join(''), 'I. INTRODUCTION');
+    assert.equal(blocks.length, 2, 'wrapped Q. line must stay in the paragraph rather than becoming h2');
+    assert.equal(
+      blocks[1].text,
+      'We evaluate high-dimensional data and performance in a candidate-record architecture with Q = Q. In this setup, we keep high-dynamic signals intact.',
+    );
+    assert.equal(blocks[1].textRuns.map(r => r.text).join(''), blocks[1].text);
+  });
   console.log(`${count} reflow regression checks passed.`);
 } finally {
   await fs.rm(tmp, { recursive: true, force: true });

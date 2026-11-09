@@ -42,6 +42,14 @@ const server = http.createServer(async (req, res) => {
     ? { status: 'completed', output: [{ type: 'reasoning', summary: [{ text: 'never display' }] }, { type: 'message', content: [{ type: 'output_text', text: content }] }] }
     : { choices: [{ finish_reason: 'stop', message: { content } }] }));
   if (input.startsWith('auth')) { res.writeHead(401); return res.end('{"error":"test auth"}'); }
+  if (input.startsWith('reject-temp') && body.temperature !== undefined) {
+    res.writeHead(400);
+    return res.end(JSON.stringify({ error: { message: "Unsupported parameter: 'temperature' is not supported with this model." } }));
+  }
+  if (input.includes('bad-400-seg')) {
+    res.writeHead(400);
+    return res.end(JSON.stringify({ error: { message: 'Input triggered upstream content filter on segment' } }));
+  }
   if (input.startsWith('server-error')) { res.writeHead(503); return res.end('{"error":"temporary"}'); }
   if ((input.startsWith('retry') || input.startsWith('backoff-cancel')) && count === 1) {
     res.writeHead(429, { 'retry-after': input.startsWith('backoff-cancel') ? '1' : '0' });
@@ -146,8 +154,25 @@ try {
   assert.equal(hits.get('slow abort all'), 2, 'new request must not attach to abandoned flight');
 
   const beforeAuth = requests.length;
-  await assert.rejects(translateBatch(['auth one', 'auth two', 'auth three']), /401/);
+  await assert.rejects(translateBatch(['auth one', 'auth two', 'auth three']), /401：test auth/);
   assert.equal(requests.length - beforeAuth, 1, 'auth failure must not retry or fan out');
+  // Issue #5: HTTP 400 due to unsupported optional parameter (e.g. temperature on reasoning model) retries without optional params
+  const beforeTempFallback = requests.length;
+  assert.deepEqual((await translateBatch(['reject-temp paragraph'])).results, ['译:reject-temp paragraph']);
+  assert.equal(requests.length - beforeTempFallback, 2, 'HTTP 400 with optional params retries once without temperature/reasoning');
+  assert.equal(requests.at(-1).body.temperature, undefined);
+  // Issue #5: Multi-segment batch where a single segment causes HTTP 400 isolates the failing segment and surfaces server detail
+  await assert.rejects(
+    translateBatch(['healthy seg 1', 'bad-400-seg', 'healthy seg 2']),
+    err => {
+      assert.match(err.message, /400：Input triggered upstream content filter on segment/);
+      assert.deepEqual(err.result.results, ['译:healthy seg 1', '', '译:healthy seg 2']);
+      assert.equal(err.result.failures.length, 1);
+      assert.equal(err.result.failures[0].index, 1);
+      assert.match(err.result.failures[0].message, /Input triggered upstream content filter on segment/);
+      return true;
+    },
+  );
   const beforeServer = requests.length;
   await assert.rejects(translateBatch(['server-error one', 'server-error two']), /503/);
   assert.equal(requests.length - beforeServer, 2, 'server failures retry once, without per-segment fanout');

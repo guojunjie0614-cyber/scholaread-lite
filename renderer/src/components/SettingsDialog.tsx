@@ -93,6 +93,90 @@ function MagpieModels({ baseUrl, selected, onSelect, onModels }: { baseUrl: stri
   </div>;
 }
 
+function ProviderModelField({
+  provider,
+  baseUrl,
+  apiKey,
+  needsKey,
+  value,
+  placeholder,
+  onChange,
+}: {
+  provider: string;
+  baseUrl?: string;
+  apiKey?: string;
+  needsKey: boolean;
+  value: string;
+  placeholder?: string;
+  onChange: (model: string) => void;
+}) {
+  const [models, setModels] = useState<ProviderModel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  const canFetch = !needsKey || Boolean(apiKey?.trim());
+  useEffect(() => {
+    if (!canFetch || typeof api.settings?.providerModels !== 'function') {
+      setLoading(false);
+      setError('');
+      setModels([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    const timer = setTimeout(() => {
+      void api.settings.providerModels(provider, { baseUrl, apiKey }).then(result => {
+        if (!cancelled) {
+          setModels(result);
+          setLoading(false);
+        }
+      }).catch(reason => {
+        if (!cancelled) {
+          setModels([]);
+          setError(settingsError(reason));
+          setLoading(false);
+        }
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [provider, baseUrl, apiKey, revision, canFetch]);
+
+  return <div className="settings-field"><label htmlFor="translation-model">模型</label>
+    <div className="gateway-model-control provider-model-control">
+      <input id="translation-model" type="text" value={value} placeholder={placeholder} spellCheck={false}
+        onChange={e => onChange(e.target.value)} />
+      {models.length > 0 && (
+        <DesktopMenu ariaLabel="可用模型列表" className="settings-menu provider-model-picker" width={310} align="end" disabled={loading}
+          items={models.map(model => ({
+            id: model.id,
+            label: model.label === model.id ? model.id : `${model.label} (${model.id})`,
+            selected: model.id === value,
+            onSelect: () => onChange(model.id),
+          }))}>
+          <span>列表</span><IconChevronDown aria-hidden="true" />
+        </DesktopMenu>
+      )}
+      <button type="button" className="btn ghost gateway-refresh" disabled={loading || !canFetch}
+        onClick={() => setRevision(v => v + 1)}>
+        {models.length ? '刷新' : '获取'}
+      </button>
+    </div>
+    <p className={error ? 'gateway-error' : undefined} role={error ? 'alert' : 'status'}>
+      {loading
+        ? '正在拉取可用模型列表…'
+        : error || (models.length
+          ? `已获取 ${models.length} 个可用模型，可从下拉列表选择或直接输入`
+          : needsKey && !apiKey?.trim()
+            ? '填写 API Key 后自动拉取可用模型列表，也可直接手动输入。'
+            : '可点击「获取」拉取可用模型列表，或直接手动输入。')}
+    </p>
+  </div>;
+}
+
 export function SettingsDialog({ settings, providers, onSave, onClose, onLibraryImported, initialSection = 'appearance' }: Props) {
   const [draft, setDraft] = useState<Settings>(() => structuredClone(settings));
   const [section, setSection] = useState<SettingsSection>(initialSection);
@@ -211,10 +295,17 @@ export function SettingsDialog({ settings, providers, onSave, onClose, onLibrary
               onChange={e => patchProvider({ apiKey: e.target.value })} />
             <p>密钥保存在本机，用于向所选服务验证请求。</p>
           </div>}
-          {['openai', 'deepseek', 'ollama'].includes(activeId) && <div className="settings-field"><label htmlFor="translation-model">模型</label>
-            <input id="translation-model" type="text" value={active.model ?? ''} placeholder={info?.defaultModel} spellCheck={false}
-              onChange={e => patchProvider({ model: e.target.value })} />
-          </div>}
+          {['openai', 'deepseek', 'ollama'].includes(activeId) && (
+            <ProviderModelField
+              provider={activeId}
+              baseUrl={active.baseUrl}
+              apiKey={active.apiKey}
+              needsKey={Boolean(info?.needsKey)}
+              value={active.model ?? ''}
+              placeholder={info?.defaultModel}
+              onChange={model => patchProvider({ model })}
+            />
+          )}
           {activeId === 'magpie' && <MagpieModels baseUrl={active.baseUrl ?? ''} selected={active.model ?? ''}
             onModels={receiveModels}
             onSelect={model => patchProvider({ model: model.id, api: model.api,

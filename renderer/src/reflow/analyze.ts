@@ -8,13 +8,13 @@ import { parseCaption, isProseCaptionReference, isWrappedProseMention } from './
 import { matchFigurePlates, groupFigurePlateRows } from './figure-plates';
 import { identifyAlgorithms, identifyCodeFigures } from './algorithms';
 import { identifyAuthorPortraits } from './portraits';
-import { lineTextRuns, linesTextRuns, joinTextRuns } from './inline-text';
+import { lineTextRuns, linesTextRuns, joinTextRuns, filterSubSpaceItems, spaceThreshold } from './inline-text';
 import { identifyFrontMatter, identifyPublicationHeaders, identifyRepeatedPublicationHeaders } from './front-matter';
 import { classifyReadingRoles } from './reading-roles';
 import { classifyReferences, endsReferenceSection, isBibliographicLine, isBibliographicEntryStart } from './references';
 import { isReferenceHeading } from '@shared/reading-content';
 import { composeDottedEquals, composeEquationNumbers, hasUnmappedGlyphs, recoverEncodedGlyphs, splitInterleavedMathRuns } from './glyph-recovery';
-export const REFLOW_ENGINE_VERSION = 30;
+export const REFLOW_ENGINE_VERSION = 31;
 
 /** Running headers and floating figures must not interrupt an unfinished sentence. */
 export function orderFloatingContent<T extends Pick<Block, 'kind' | 'text' | 'readingRole'>>(blocks: T[]): T[] {
@@ -104,12 +104,14 @@ function bodySize(items: RawItem[]): number {
 }
 
 function joinItems(items: RawItem[]): string {
-  let text = '', end = -Infinity;
-  for (const it of [...items].sort((a, b) => a.x - b.x)) {
-    if (text && it.x - end > Math.max(.5, it.h * .13) && !(/\s$/.test(text) || /^\s/.test(it.str)))
+  const sorted = filterSubSpaceItems([...items].sort((a, b) => a.x - b.x));
+  let text = '', end = -Infinity, prevInk: RawItem | null = null;
+  for (const it of sorted) {
+    if (text && /\S/.test(it.str) && it.x - end > spaceThreshold(prevInk, it) && !(/\s$/.test(text) || /^\s/.test(it.str)))
       text += ' ';
     text += it.str;
     end = Math.max(end, it.x + it.w);
+    if (/\S/.test(it.str)) prevInk = it;
   }
   return norm(text);
 }
@@ -159,9 +161,12 @@ function toLines(items: RawItem[], maxGap = Infinity, gutter: number | null = nu
   // once its horizontal extent makes that host unambiguous.
   for (const row of [...rows]) {
     const rowSize = Math.max(...row.items.map(it => it.h));
-    const candidates = rows.filter(host => host !== row).flatMap(host => host.items.filter(h => h.h > rowSize / .88)
-      .map(h => ({ host, size: h.h, offset: row.y - h.y,
-        distance: Math.min(...row.items.map(it => Math.max(0, it.x - (h.x + h.w), h.x - (it.x + it.w)))) })))
+    const candidates = rows.filter(host => host !== row).flatMap(host => {
+      const hostMax = Math.max(...host.items.map(x => x.h));
+      return host.items.filter(h => h.h > rowSize / .88 || (hostMax > rowSize / .88 && Math.abs(h.y - host.y) <= Math.max(1, h.h * .2)))
+        .map(h => ({ host, size: Math.max(h.h, hostMax), offset: row.y - h.y,
+          distance: Math.min(...row.items.map(it => Math.max(0, it.x - (h.x + h.w), h.x - (it.x + it.w)))) }));
+    })
       .filter(x => x.offset >= -x.size * (rowSize < x.size * .56 ? .95 : .75) && x.offset <= x.size * .65 && x.distance <= x.size * .5 &&
         (!row.items.every(it => /^[′″‴]+$/.test(it.str.trim())) || x.offset <= x.size * .1))
       .sort((a, b) => a.distance - b.distance || Math.abs(a.offset) - Math.abs(b.offset));
@@ -179,8 +184,9 @@ function toLines(items: RawItem[], maxGap = Infinity, gutter: number | null = nu
     const rowSize = rowInk.length ? Math.max(...rowInk.map(x => x.h)) : 10;
     const bridgesGutter = gutter !== null && (
       rowInk.some(it => it.x < gutter - 2 && it.x + it.w > gutter + 2) ||
-      rowInk.some((it, idx) => idx > 0 && rowInk[idx - 1].x + rowInk[idx - 1].w >= gutter - rowSize * .45 &&
-        it.x <= gutter + rowSize * .45 && it.x - (rowInk[idx - 1].x + rowInk[idx - 1].w) <= Math.max(5, rowSize * .65))
+      rowInk.some((it, idx) => idx > 0 && rowInk[idx - 1].x < gutter - 2 && it.x + it.w > gutter + 2 &&
+        rowInk[idx - 1].x + rowInk[idx - 1].w <= gutter + 4 && it.x >= gutter - 4 &&
+        it.x - (rowInk[idx - 1].x + rowInk[idx - 1].w) <= Math.max(5, rowSize * .75))
     );
     const splitColumns = gutter !== null && !bridgesGutter;
     let group: RawItem[] = [];
@@ -288,15 +294,47 @@ function lineKind(line: Line, body: number, page: number): BlockKind {
   return 'p';
 }
 
+const COMPOUND_PREFIX = /^(?:non|self|multi|cross|co|re|pre|post|anti|semi|quasi|sub|super|ultra|inter|intra|macro|micro|mini|mono|bi|tri|quad|poly|auto|meta|para|proto|pseudo|neo|pan|vice|ex|all|full|half|low|high|mid|wide|narrow|long|short|fast|slow|hard|soft|real|single|double|triple|dual|two|three|four|five|six|seven|eight|nine|ten|first|second|third|one|zero|well|ill|best|least|most|less|more|near|far|off|on|in|out|up|down|over|under|back|front|side|top|bottom|left|right|hand|eye|head|base|state|time|space|rate|bit|byte|word|line|row|col|column|page|block|cell|node|edge|path|tree|graph|net|network|mesh|grid|ring|bus|port|link|channel|band|wave|beam|pulse|clock|phase|mode|step|stage|level|tier|layer|plane|domain|field|zone|region|area|point|spot|site|end|start|mid|center|core|edge|shell|frame|box|case|set|group|class|type|kind|form|style|model|scheme|method|rule|law|norm|bound|limit|range|scale|size|width|length|height|depth|mass|weight|load|force|power|energy|heat|light|sound|noise|signal|data|code|key|tag|flag|mark|sign|token|item|unit|part|piece|ank|bank|array|list|table|map|pair|tuple|vector|matrix|tensor|scalar|rank|order|degree|grade|score|rate|ratio|factor|index|value|cost|price|fee|tax|gain|loss|risk|error|fault|bug|gap|drop|rise|shift|jump|step|turn|spin|roll|pitch|yaw|flow|stream|wave|current|voltage|charge|flux|field|gate|source|drain|bulk|well|oxide|metal|wire|line|track|trace|pad|pin|via|hole|slot|gap|fin|sheet|layer|film|stack|die|chip|core|tile|slice|bank|mat|subarray|row|column|cell|bitline|wordline|crossbar|memristor|resistor|capacitor|inductor|transistor|diode|laser|sensor|detector|actuator|motor|pump|valve|filter|mixer|amp|amplifier|oscillator|pll|adc|dac|mux|demux|alu|mac|fpu|cpu|gpu|npu|tpu|fpga|asic|soc|noc|pim|cim|cam|tcams|sram|dram|rram|reram|pcm|mram|feffet|fefet|flash|rom|ram|fifo|lifo|lut|bram|dsp|pe|se|cu|sm|warp|thread|task|job|work|workload|benchmark|dataset|test|train|val|eval|run|pass|cycle|epoch|batch|sample|token|word|char|pixel|voxel|patch|frame|clip|view|shot|pose|track|object|person|face|hand|body|car|road|lane|sign|light|tree|sky|building|room|wall|floor|door|window|chair|table|bed|sofa|lamp|book|paper|doc|file|folder|dir|path|url|uri|api|sdk|cli|gui|ui|ux|os|vm|db|sql|xml|json|yaml|html|css|js|ts|py|cpp|rust|go|java|fine|coarse|large|small|big|tiny|huge|vast|deep|shallow|thick|thin|flat|steep|sharp|blunt|smooth|rough|clean|dirty|pure|mixed|raw|cooked|dry|wet|hot|cold|warm|cool|bright|dark|dim|clear|blurry|loud|quiet|strong|weak|heavy|light|dense|sparse|tight|loose|stiff|soft|rigid|flexible|stable|unstable|static|dynamic|fixed|free|open|closed|public|private|local|global|inner|outer|upper|lower|early|late|old|new|young|fresh|stale|good|bad|fine|poor|rich|lean|fat|thick|thin|true|false|right|wrong|safe|unsafe|sure|unsure|easy|hard|simple|complex|plain|fancy|common|rare|odd|even|main|sub|aux|extra|spare|free|busy|idle|live|dead|active|passive|online|offline|inline|outline|onchip|offchip|inmemory|near|far|pre|post|co|re|de|un|non|mis|dis|over|under|out|up|down|cross|counter|fore|inter|intra|mid|mini|multi|non|over|post|pre|pro|re|self|semi|sub|super|trans|twi|ultra|un|under)$/i;
+
+const COMPOUND_SUFFIX = /^(?:based|driven|aware|free|like|wise|wide|side|time|space|scale|level|stage|step|rate|mode|type|style|form|kind|class|set|group|band|width|length|height|depth|size|range|bound|limit|point|line|plane|field|zone|area|region|domain|layer|tier|shell|core|unit|part|block|cell|node|edge|path|net|mesh|grid|ring|bus|port|link|channel|wave|beam|pulse|clock|phase|flow|stream|current|voltage|power|energy|force|load|mass|weight|cost|gain|loss|risk|error|fault|gap|drop|rise|shift|jump|turn|spin|roll|pitch|yaw|ratio|factor|index|value|score|grade|degree|order|rank|matrix|vector|tensor|array|list|table|map|pair|tree|graph|model|scheme|method|rule|law|norm|system|network|circuit|device|sensor|detector|filter|amplifier|processor|controller|converter|inverter|driver|buffer|memory|storage|cache|register|counter|timer|adder|multiplier|divider|decoder|encoder|multiplexer|comparator|correlator|estimator|predictor|classifier|regressor|detector|tracker|segmenter|generator|discriminator|academia|industry|specific|independent|dependent|oriented|centric|friendly|ready|safe|proof|resistant|tolerant|sensitive|insensitive|variant|invariant|linear|nonlinear|stationary|nonstationary|symmetric|asymmetric|synchronous|asynchronous|parallel|serial|digital|analog|mixed|hybrid|local|global|static|dynamic|active|passive|online|offline|inline|chip|memory|package|board|die|wafer|gate|source|drain|bulk|oxide|metal|wire|track|pad|pin|via|fin|sheet|film|stack|tile|slice|bank|mat|row|column|crossbar|bit|byte|word|page|frame|packet|flit|phit|cycle|step|pass|run|test|train|eval|workload|benchmark|dataset|record|records|candidate|candidates|architecture|algorithm|design|co-design|codesign|refinement|grained|dimensional|order|precision|accuracy|resolution|speed|throughput|latency|efficiency|density|capacity|bandwidth|overhead|margin|budget|constraint|constrained|coupled|decoupled|assisted|guided|induced|triggered|controlled|modulated|regulated|stabilized|calibrated|compensated|optimized|accelerated|enabled|disabled|configured|connected|disconnected|coupled|isolated|integrated|embedded|distributed|centralized|federated|hierarchical|modular|scalable|reconfigurable|programmable|adaptive|programmable|tunable|adjustable|selectable|switchable|reversible|irreversible)$/i;
+
+function shouldKeepHyphen(left: string, right: string): boolean {
+  const headMatch = left.match(/([A-Za-z0-9-]+)-$/);
+  const tailMatch = right.match(/^([A-Za-z0-9-]+)/);
+  if (!headMatch || !tailMatch) return true;
+  const rawHead = headMatch[1], rawTail = tailMatch[1];
+  const head = rawHead.split('-').pop()!;
+  const tail = rawTail.split('-')[0];
+  if (/\d/.test(rawHead) || /\d/.test(rawTail)) return true;
+  if (/^[A-Z]/.test(tail) || (head.length > 1 && /^[A-Z]+$/.test(head))) return true;
+  if (/^[A-Za-z]$/.test(rawHead)) return true;
+  if (rawHead.includes('-')) {
+    return COMPOUND_PREFIX.test(head) || COMPOUND_SUFFIX.test(tail);
+  }
+  const h = head.toLowerCase(), t = tail.toLowerCase();
+  if (/^(?:self|multi|non|cross|quasi|semi|anti|post|ultra|intra|macro|micro|mini|mono|poly|auto|meta|proto|pseudo|neo|pan|vice|all|full|half|low|high|mid|wide|long|short|fast|slow|soft|real|single|double|triple|dual|two|three|four|five|first|second|third|one|zero|well|ill|best|least|most|less|more|near|far|off|on|out|up|down|over|under|back|front|side|top|bottom|left|right|fine|coarse|large|small|big|tiny|deep|shallow|flat|sharp|smooth|rough|clean|pure|mixed|raw|dry|wet|hot|cold|warm|cool|bright|dark|clear|loud|quiet|strong|weak|heavy|light|dense|sparse|tight|loose|stiff|rigid|stable|static|fixed|free|open|closed|public|private|local|global|inner|outer|upper|lower|early|late|old|new|good|bad|rich|lean|true|false|safe|easy|simple|plain|common|rare|odd|even|main|extra|spare|busy|idle|live|dead|active|passive|online|offline|inline)$/.test(h)) return true;
+  if (/^(?:co|re|pre|de|un|in|im|dis|mis|sub|inter|trans|super|counter|out|over|under)$/.test(h)) {
+    if (h === 'co' && /^(?:design|designed|designs|designing|author|authors|authored|locate|located|location|operate|operation|operative|optimize|optimization|processor|processors|processing|simulation|simulations|exist|existence|existing|adaptation|adaptive|evolution|evolving|ordinate|ordinates|ordination|planar|prime|worker|workers|working|founder|founders|pilot|channel|channels|variance|variant|variants|occurrence|occurring|opt|opted|opting|pay|payment|produce|production|star|stars|teacher|teaching|terminous|tracker|tracking|train|training|verification|verify)$/.test(t)) return true;
+    if (h === 're' && /^(?:enter|entries|entry|establish|established|establishing|evaluate|evaluated|evaluation|examine|examined|examination|elect|elected|election|enact|enacted|energize|engineer|engineered|engineering|ice|ink|issue|issued|orient|oriented|orientation|open|opened|opening|order|ordered|ordering|organize|organized|organization|read|reading|run|running|use|used|using|write|writing)$/.test(t)) return true;
+    if (h === 'pre' && /^(?:existing|war|workout|school|process|processed|processing|processor|processors|amplify|amplifier|amplifiers|charge|charged|charging|chargers|compile|compiled|compiler|compute|computed|computing|condition|conditioned|conditioning|conditioner|configure|configured|configuration|decode|decoded|decoder|decoding|define|defined|emphasis|emphatic|empt|emption|emptive|fabricate|fabricated|fetch|fetched|fetching|filter|filtered|filtering|heat|heated|heating|lay|layout|load|loaded|loading|paid|pay|program|programmed|programming|record|recorded|recording|register|registered|registration|release|released|requisite|requisites|route|routed|routing|scale|scaled|scaler|scaling|select|selected|selection|selector|set|setting|sort|sorted|sorting|store|stored|storing|train|trained|training|treat|treated|treatment|view|viewed|viewing|warm|warmed|warming)$/.test(t)) return true;
+    if (h === 'in' && /^(?:memory|chip|situ|line|plane|phase|place|order|band|loop|house|depth|flight|focus|group|kind|law|laws|network|package|patient|person|pixel|play|point|process|Sensor|sensor|service|sight|source|specie|state|step|store|stream|system|tank|target|text|time|touch|transit|turn|use|vitro|vivo|wall|water|world)$/.test(t)) return true;
+    if (h === 'sub' && /^(?:array|arrays|band|bands|block|blocks|channel|channels|circuit|circuits|class|classes|clock|clocks|column|columns|component|components|cycle|cycles|domain|domains|field|fields|figure|figures|frame|frames|graph|graphs|group|groups|grid|grids|image|images|interval|intervals|item|items|layer|layers|line|lines|list|lists|Map|map|maps|matrix|matrices|menu|menus|micron|mm|model|models|module|modules|ms|net|nets|network|networks|node|nodes|ns|optimal|page|pages|panel|panels|part|parts|path|paths|pattern|patterns|phase|phases|pixel|pixels|plane|planes|problem|problems|process|processes|program|programs|project|projects|region|regions|ring|rings|routine|routines|row|rows|sample|samples|Sampling|sampling|scale|scales|scheme|schemes|section|sections|sequence|sequences|set|sets|space|spaces|stage|stages|state|states|step|steps|stream|streams|string|strings|structure|structures|system|systems|table|tables|task|tasks|tensor|tensors|test|tests|text|texts|threshold|tile|tiles|topic|topics|total|tree|trees|type|types|unit|units|value|values|vector|vectors|view|views|window|windows|word|words|zone|zones|zero|diagonal)$/.test(t)) return true;
+    return false;
+  }
+  if (COMPOUND_PREFIX.test(h) && COMPOUND_SUFFIX.test(t) && h.length >= 3 && t.length >= 3) return true;
+  if (COMPOUND_SUFFIX.test(t) && h.length >= 4 && !/^(?:tion|sion|ment|ness|ance|ence|able|ible|ture|tive|less|ship|hood|ward|wise)$/.test(t)) {
+    const joined = h + t;
+    if (!/^(?:perform|inform|transform|conform|deform|reform|platform|uniform|algorithm|logarithm|arithmetic|character|temperature|literature|architecture|manufacture|infrastructure|microstructure|superstructure|substructure|nomenclature|expenditure|legislature|candidature|investiture|miniature|caricature|signature|curvature|armature|ligature|aperture|overture|conjecture|lecture|picture|structure|culture|nature|feature|creature|future|mature|capture|rapture|rupture|sculpture|tea|measure|pleasure|treasure|closure|exposure|composure|enclosure|disclosure|foreclosure|erasure|leisure|seizure|fissure|pressure|assure|ensure|insure|reassure|procure|secure|obscure|endure|manure|tenure|venture|adventure|indenture|jointure|posture|gesture|vesture|texture|mixture|fixture|tincture|juncture|puncture|acupuncture|stricture|depicture|configure|reconfigure|disfigure|transfigure|prefigure|hardware|software|firmware|middleware|malware|spyware|adware|freeware|shareware|groupware|courseware|bloatware|vaporware|tableware|glassware|silverware|cookware|kitchenware|earthenware|stoneware|ironware|tinware|woodenware|houseware|giftware|holloware|flatware|stemware|drinkware|bakeware|serveware|ovens|warehouse|aware|unaware|beware|square|compare|prepare|declare|welfare|warfare|fanfare|thoroughfare|airfare|busfare|cabfare|carfare|seafare|wayfare|fieldfare|chaffinch|nightmare|share|spare|stare|glare|flare|scare|snare|bare|care|dare|fare|hare|mare|pare|rare|tare|ware|yare)/.test(joined))
+      return true;
+  }
+  return false;
+}
+
 function joinLines(left: string, right: string): string {
   if (/\u00ad$/.test(left))
     return left.slice(0, -1) + right;
   if (/[a-z]-$/i.test(left) && /^[a-z]/i.test(right)) {
-    const head = left.match(/([A-Za-z]+)-$/)?.[1] ?? '';
-    // Conservative dehyphenation: retain real compounds such as high-dynamic and candidate-record.
-    if (/^(?:re|co|de|pre|pro|un|in|im|en|ex|dis|mis|sub|inter|trans|how|there|com|con|sig|para|archi|imple|opti|compu|evalua|detec|correla)$/i.test(head) || /^(?:tion|sion|tions|sions|ing|ment|ments|ness|ity|ities|ance|ence|able|ible|ization|isation|ture|tures|tation|tations|rithm|rithms|puter|puters)\b/i.test(right))
-      return left.slice(0, -1) + right;
-    return left + right;
+    return shouldKeepHyphen(left, right) ? left + right : left.slice(0, -1) + right;
   }
   if (/[\u3400-\u9fff]$/.test(left) && /^[\u3400-\u9fff]/.test(right))
     return left + right;
@@ -330,8 +368,8 @@ function paragraphs(lines: Line[], body: number, page: number, referenceState = 
     const line = lines[index], next = lines[index + 1], afterNext = lines[index + 2];
     let kind = line.readingRole === 'title' ? 'h1' as const : line.readingRole ? 'p' as const : lineKind(line, body, page);
     const last = out[out.length - 1];
-    // A decimal value at the start of a wrapped line is not a section number.
-    const wrappedDecimal = /^\d+\.\d+\s/.test(line.text) && last?.kind === 'p' && prev &&
+    // A decimal value or single-letter equation symbol at the start of a wrapped line is not a section heading.
+    const wrappedDecimal = /^(?:\d+\.\d+|[A-Z]\.)\s/.test(line.text) && last?.kind === 'p' && prev &&
       !/[.!?;:。！？]$/.test(prev.text) && last.x1 - last.x0 > body * 12 && prev.x1 >= last.x1 - body * 2.5 &&
       Math.abs(line.x0 - prev.x0) < body * .5 && line.y - prev.y > 0 && line.y - prev.y < body * 1.75;
     if (/^h[23]$/.test(kind) && wrappedDecimal) kind = 'p';
@@ -340,9 +378,13 @@ function paragraphs(lines: Line[], body: number, page: number, referenceState = 
     if (!wrappedDecimal && !line.readingRole && kind === 'p' && /^\d+(?:\.\d+)*\s+[A-Z]/.test(line.text) &&
       line.text.length < 120 && !/[.!?。！？]$/.test(line.text) && headingGap &&
       (!prev || line.y - prev.y > body * 1.4)) kind = 'h2';
-    if (kind === 'p' && last?.kind === 'h2' && prev && /^\d+(?:\.\d+)*\s/.test(last.text) &&
-      line.x0 > last.x0 + body && line.y - prev.y < body * 1.35 && next && next.y - line.y > body * 1.4 &&
-      !/[.!?。！？]$/.test(line.text)) kind = 'h2';
+    if (kind === 'p' && (last?.kind === 'h2' || last?.kind === 'h3') && prev && !/[.!?。！？]$/.test(line.text) && line.y - prev.y < body * 1.35 &&
+      ((/^\d+(?:\.\d+)*\s/.test(last.text) && line.x0 > last.x0 + body && next && next.y - line.y > body * 1.4) ||
+       (/^[IVXLC]{1,6}\.\s+/.test(last.text) && !/[a-z]{3}/.test(prev.text) && !/[a-z]{3}/.test(line.text) &&
+        Math.abs((line.x0 + line.x1) / 2 - (prev.x0 + prev.x1) / 2) <= body * 2.5) ||
+       (last.kind === 'h3' && /^[A-Z]\.\s+/.test(last.text) && !/[.!?;:。！？]$/.test(prev.text) &&
+        line.x0 >= last.x0 + body * .4 && Math.abs(line.size - prev.size) <= .8 &&
+        next && next.y - line.y > line.y - prev.y + 1))) kind = last.kind;
     const referenceHeading = isReferenceHeading({ kind, text: line.text });
     if (referenceHeading) inReferences = true;
     else if (endsReferenceSection(line.text)) inReferences = false;
@@ -408,6 +450,8 @@ function canContinueCaption(
   if (next.y - last.y <= first.size * .2 || next.y - last.y > Math.max(first.size * 1.75, body * 1.5)) return false;
   if (Math.abs(next.size - first.size) > 1.2) return false;
   const label = parseCaption(first.text);
+  if (label?.kind === 'table' && last !== first && !/[a-z]{3}/.test(first.text) && !/[a-z]{3}/.test(last.text) &&
+      /[a-z]{3}/.test(next.text) && next.y - last.y > (last.y - first.y) * 1.15) return false;
   const shortTableHead = label?.kind === 'table' && first.x1 - first.x0 < body * 14;
   const centered = Math.abs((next.x0 + next.x1) / 2 - (first.x0 + first.x1) / 2) <= body * 3 &&
     (shortTableHead || (next.x0 >= first.x0 - body * 1.5 && next.x1 <= first.x1 + body * 1.5));
@@ -424,7 +468,7 @@ function canContinueCaption(
 /** pdfplumber-style snap & join for collinear segmented horizontal table rules. */
 function joinHorizontalRules(drawings: Drawing[]): Drawing[] {
   const rules = drawings
-    .filter(r => r.horizontal)
+    .filter(r => r.horizontal || (r.kind === 'path' && r.y1 - r.y0 < 2.2 && r.x1 - r.x0 >= 3))
     .map(r => ({ ...r }))
     .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
   const joined: Drawing[] = [];
@@ -439,7 +483,27 @@ function joinHorizontalRules(drawings: Drawing[]): Drawing[] {
       joined.push(r);
     }
   }
-  return joined;
+  return joined.filter(r => r.x1 - r.x0 > 30);
+}
+
+/** Find horizontal rule bands of tables so internal table column gaps do not pollute detectGutter. */
+function tableRuleBands(drawings: Drawing[], pageHeight: number): Rect[] {
+  const rules = joinHorizontalRules(drawings).filter(r => r.x1 - r.x0 > 80);
+  const bands: Rect[] = [];
+  const used = new Set<Drawing>();
+  for (const top of rules) {
+    if (used.has(top)) continue;
+    const aligned = rules.filter(r => !used.has(r) && r.y0 >= top.y0 - 2 && r.y1 - top.y0 < pageHeight * .75 &&
+      Math.abs(r.x0 - top.x0) < 12 && Math.abs(r.x1 - top.x1) < 12);
+    if (aligned.length >= 2) {
+      const box = unionRects(aligned);
+      if (box.y1 - box.y0 >= 14) {
+        aligned.forEach(r => used.add(r));
+        bands.push(box);
+      }
+    }
+  }
+  return bands;
 }
 
 function identifyTables(
@@ -462,7 +526,10 @@ function identifyTables(
     for (let j = i + 1; j < lines.length; j++) {
       const next = lines[j], last = parts[parts.length - 1];
       if (xOverlap(next, line) === 0 && Math.abs((next.x0 + next.x1) / 2 - (line.x0 + line.x1) / 2) > body * 6) continue;
-      if (hRules.some(r => r.y0 > last.y0 && r.y0 < next.y1 && r.x0 < (line.x0 + line.x1) / 2 && r.x1 > (line.x0 + line.x1) / 2 && r.x1 - r.x0 > 80)) break;
+      const cx = (line.x0 + line.x1) / 2;
+      if (hRules.some(r => r.y0 > last.y0 && r.y0 < next.y1 && r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80)) break;
+      if (parts.length >= 2 && !/[a-z]{3}/.test(last.text) && /[a-z]{3}/.test(next.text) &&
+          hRules.some(r => r.y0 >= next.y1 - 1 && r.y0 - next.y1 <= 4 && r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80)) break;
       if (!canContinueCaption(line, last, next, body, pageNumber)) break;
       parts.push(next);
     }
@@ -471,15 +538,47 @@ function identifyTables(
   for (let idx = 0; idx < captions.length; idx++) {
     const { first: caption, box: captionBox } = captions[idx];
     const cx = (captionBox.x0 + captionBox.x1) / 2;
-    const col = cols.find(c => cx >= c.x0 && cx <= c.x1) ?? { x0: cols[0].x0, x1: cols[cols.length - 1].x1 };
+    const spansGutter = cols.length > 1 && captionBox.x0 < cols[0].x1 - 4 && captionBox.x1 > cols[1].x0 + 4;
+    const col = spansGutter
+      ? { x0: cols[0].x0, x1: cols[cols.length - 1].x1 }
+      : (cols.find(c => cx >= c.x0 && cx <= c.x1) ?? { x0: cols[0].x0, x1: cols[cols.length - 1].x1 });
     const nextCaption = captions.slice(idx + 1).find(c => c.box.y0 > captionBox.y0 && c.box.x0 < col.x1 && c.box.x1 > col.x0);
     const limitY = nextCaption?.box.y0 ?? height * .96;
-    const rules = hRules.filter(r => r.y0 > caption.y && r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80).sort((a, b) => a.y0 - b.y0);
+    const rawRulesBelow = hRules.filter(r => r.y0 > caption.y && r.y1 < limitY && r.x1 - r.x0 > 60).sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+    const wideTop = rawRulesBelow.find(r => r.y0 - captionBox.y1 <= 65 && r.x0 < cx && r.x1 > cx &&
+      cols.length > 1 && r.x0 < cols[0].x1 - 4 && r.x1 > cols[1].x0 + 4);
+    const spanX0 = Math.min(col.x0, captionBox.x0, wideTop ? cols[0].x0 : col.x0);
+    const spanX1 = Math.max(col.x1, captionBox.x1, wideTop ? cols[cols.length - 1].x1 : col.x1);
+    // Side-by-side subtables under one caption (e.g. C2-LSM Table I) share y-aligned horizontal rules across the span.
+    const mergedRules: Drawing[] = [];
+    for (const r of rawRulesBelow) {
+      if (r.x0 < spanX0 - 12 || r.x1 > spanX1 + 12) continue;
+      const sameY = mergedRules.find(m => Math.abs(m.y0 - r.y0) <= 2);
+      if (sameY) {
+        sameY.x0 = Math.min(sameY.x0, r.x0);
+        sameY.y0 = Math.min(sameY.y0, r.y0);
+        sameY.x1 = Math.max(sameY.x1, r.x1);
+        sameY.y1 = Math.max(sameY.y1, r.y1);
+      } else {
+        mergedRules.push({ ...r });
+      }
+    }
+    const rules = mergedRules.filter(r => r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80).sort((a, b) => a.y0 - b.y0);
     const top = rules[0];
     if (top && top.y0 - captionBox.y1 <= 65) {
-      const aligned = rules.filter(r => Math.abs(r.x0 - top.x0) < 6 && Math.abs(r.x1 - top.x1) < 6 && r.y1 < limitY);
-      if (aligned.length >= 2) {
-        let box = unionRects(aligned);
+      const maxRuleWidth = Math.max(...rules.filter(r => r.y0 - captionBox.y1 <= 85).map(r => r.x1 - r.x0));
+      const fullRules = rules.filter(r => r.x1 - r.x0 >= maxRuleWidth - 12);
+      const bottomFull = fullRules[fullRules.length - 1];
+      if (bottomFull && (bottomFull !== top || rules.length >= 2)) {
+        const tableRules = mergedRules.filter(r => r.y0 >= top.y0 - 2 && r.y1 <= bottomFull.y1 + 2 &&
+          r.x0 >= Math.min(spanX0, top.x0) - 8 && r.x1 <= Math.max(spanX1, top.x1) + 8);
+        let box = unionRects([top, bottomFull, ...tableRules]);
+        const headerLinesAboveTop = lines.filter(l => l.y0 > captionBox.y1 + 2 && top.y0 - l.y1 >= -1 && top.y0 - l.y1 <= 4 &&
+          l.x0 >= box.x0 - 8 && l.x1 <= box.x1 + 8);
+        if (headerLinesAboveTop.length) box = unionRects([box, ...headerLinesAboveTop]);
+        const cellLines = lines.filter(l => l.y0 >= box.y0 - 2 && l.y1 <= box.y1 + 2 &&
+          l.x0 >= Math.min(spanX0, box.x0) - 8 && l.x1 <= Math.max(spanX1, box.x1) + 8);
+        if (cellLines.length) box = unionRects([box, ...cellLines]);
         if (box.y1 - box.y0 >= 16) {
           // If the clustered drawing region includes outlined table notes or bottom borders
           // immediately below the last rule, union it so the table is neither clipped nor duplicated.
@@ -492,7 +591,7 @@ function identifyTables(
             d.y0 >= box.y0 - 2 && d.y0 <= box.y1 + body * .6 &&
             d.y1 <= Math.min(limitY, box.y1 + body * 2));
           if (attachedDrawings.length) box = unionRects([box, ...attachedDrawings]);
-          tables.push({ ...box, kind: 'table', parts: aligned.length, rules: { h: aligned.length, v: 0 } });
+          tables.push({ ...box, kind: 'table', parts: tableRules.length, rules: { h: tableRules.length, v: 0 } });
           continue;
         }
       }
@@ -662,7 +761,8 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
     const font = geom.fontNames.get(item.fontName) ?? style?.fontFamily ?? '';
     const extension = MATH_EXTENSION_FONT.test(font) && !!item.str.trim() && !/^[ˆ̂˙¯]+$/.test(item.str.trim());
     const ascent = extension ? 0 : (style?.ascent || .82), descent = extension ? -1.8 : (style?.descent || -.22);
-    const length = (item.width || size * item.str.length * .5) / Math.max(.001, Math.hypot(tx[0], tx[1]));
+    const rawWidth = item.width || (/^\s+$/.test(item.str) ? 0 : size * item.str.length * .5);
+    const length = rawWidth / Math.max(.001, Math.hypot(tx[0], tx[1]));
     const box = transformRect(tx, 0, descent, length, ascent);
     // Publisher stamps can run vertically along the outer page edge. Feeding their
     // baseline into horizontal line grouping would splice the entire stamp into prose.
@@ -755,10 +855,14 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   // though their glyphs are removed from ordinary text immediately afterward.
   // Algorithm glyphs and line numbers never participate in ordinary columns or paragraphs.
   items = items.filter(it => ![...algorithms, ...codeFigures].some(region => centerInside(it, region)));
-  const preGutter = detectGutter(items.filter(it => !algorithms.some(region => centerInside(it, region))), W);
+  const ruleBands = tableRuleBands(geom.drawings, H);
+  const inTableBand = (it: RawItem) => ruleBands.some(b =>
+    it.x + it.w / 2 >= b.x0 - 6 && it.x + it.w / 2 <= b.x1 + 6 &&
+    it.y >= b.y0 - body * 1.2 && it.y <= b.y1 + 4);
+  const preGutter = detectGutter(items.filter(it => !inTableBand(it) && !algorithms.some(region => centerInside(it, region))), W);
   const composites = options.keepFigures ? identifyCompositeFigures(items, geom.regions, body, W, H, preGutter) : [];
   const compositeCaptionItems = new Set(composites.flatMap(figure => figure.caption.flatMap(line => line.items)));
-  const gutter = detectGutter(items.filter(it => !algorithms.some(region => centerInside(it, region)) &&
+  const gutter = detectGutter(items.filter(it => !inTableBand(it) && !algorithms.some(region => centerInside(it, region)) &&
     !compositeCaptionItems.has(it) && !composites.some(figure => centerInside(it, figure.box))), W);
   items = items.filter(it => !compositeCaptionItems.has(it) && !composites.some(figure => centerInside(it, figure.box)));
   const portraits = usedOCR ? [] : identifyAuthorPortraits(items, geom.drawings, W, H, body,
@@ -861,8 +965,9 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   const tableBlocks = new Map<PageRegion, Block>();
   for (const region of regions) {
     if (!options.keepFigures) continue;
+    const hasTightNote = region.kind === 'table' && tableNotes.some(note => note.table === region && note.y0 <= region.y1 + 2);
     const block = add(region.kind, '', region, {
-      crop: [Math.max(0, region.x0 - 2), Math.max(0, region.y0 - 2), Math.min(W, region.x1 + 2), Math.min(H, region.y1 + 2)],
+      crop: [Math.max(0, region.x0 - 2), Math.max(0, region.y0 - 2), Math.min(W, region.x1 + 2), Math.min(H, region.y1 + (hasTightNote ? .5 : 2))],
     });
     if (region.kind === 'table') tableBlocks.set(region, block);
   }
@@ -896,16 +1001,24 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   // Recover full-width title/author rows before dividing into columns.
   const fullRows = toLines(remaining, Math.max(12, body * 1.2), gutter);
   const spans = gutter === null ? [] : fullRows.filter(l => l.x0 < gutter - 2 && l.x1 > gutter + 2);
-  for (const line of [...spans]) {
-    const label = parseCaption(line.text);
-    if (label && !isProseCaptionReference(label)) {
+  if (gutter !== null) {
+    for (let i = 0; i < fullRows.length; i++) {
+      const line = fullRows[i];
+      const label = parseCaption(line.text);
+      if (!label || isProseCaptionReference(label) || isWrappedProseMention(prevInColumn(fullRows, i), line)) continue;
+      const parts = [line];
       let prev = line;
       for (const next of fullRows.filter(l => l.y > line.y).sort((a, b) => a.y - b.y)) {
-        if (!canContinueCaption(line, prev, next, body, pageNumber, line.x1))
+        if (!canContinueCaption(line, prev, next, body, pageNumber, Math.max(line.x1, prev.x1)))
           break;
-        if (!spans.includes(next))
-          spans.push(next);
+        parts.push(next);
         prev = next;
+      }
+      const box = unionRects(parts);
+      if (box.x0 < gutter - 2 && box.x1 > gutter + 2) {
+        for (const part of parts) {
+          if (!spans.includes(part)) spans.push(part);
+        }
       }
     }
   }

@@ -27,9 +27,27 @@ export class TranslationBatchFailure extends Error {
 export class TranslateError extends Error {
   constructor(message: string, readonly provider: string, options?: ErrorOptions) { super(message, options); }
 }
-class TranslationHttpError extends TranslateError {
-  constructor(provider: string, readonly status: number, readonly retryAfter: string | null) {
-    super(`${provider} 接口返回 ${status}，请检查服务设置或稍后重试`, provider);
+export class TranslationHttpError extends TranslateError {
+  constructor(provider: string, readonly status: number, readonly retryAfter: string | null, readonly detail?: string) {
+    super(
+      detail ? `${provider} 接口返回 ${status}：${detail}` : `${provider} 接口返回 ${status}，请检查服务设置或稍后重试`,
+      provider,
+    );
+  }
+}
+
+async function readHttpErrorDetail(response: Response): Promise<string | undefined> {
+  try {
+    const raw = (await response.text()).trim();
+    if (!raw) return undefined;
+    try {
+      const json = JSON.parse(raw);
+      const msg = json?.error?.message ?? (typeof json?.error === 'string' ? json.error : undefined) ?? json?.message ?? json?.detail;
+      if (typeof msg === 'string' && msg.trim()) return msg.trim().slice(0, 300);
+    } catch { /* fall back to plain text */ }
+    return raw.replace(/\s+/g, ' ').slice(0, 300);
+  } catch {
+    return undefined;
   }
 }
 const hashOf = (provider: string, model: string, target: string, text: string) =>
@@ -141,8 +159,9 @@ async function providerRequest<T>(url: string, init: RequestInit, provider: stri
     observe(timing, 'headers', { request, headersMs, status: response.status, priority: getPriority() });
     if (!response.ok) {
       if (response.status === 429) timing.rateLimits++;
-      await response.body?.cancel();
-      throw new TranslationHttpError(provider, response.status, response.headers.get('retry-after'));
+      const detail = await readHttpErrorDetail(response);
+      observe(timing, 'http-error', { request, status: response.status, ...(detail ? { detail } : {}) });
+      throw new TranslationHttpError(provider, response.status, response.headers.get('retry-after'), detail);
     }
     try { return await consume(response); }
     catch (error) {
@@ -198,8 +217,24 @@ async function llmRequest(texts: string[], ids: number[], context: ProviderConte
   const segments = new TranslationSegments(ids, publish);
   let usage: TranslationUsage | undefined;
   try {
-    await providerRequest(url, { method: 'POST', headers, body: JSON.stringify(payload) }, provider,
-      signal, getPriority, timing, response => consumeTranslationResponse(response, api, segments, value => { usage = value; }));
+    try {
+      await providerRequest(url, { method: 'POST', headers, body: JSON.stringify(payload) }, provider,
+        signal, getPriority, timing, response => consumeTranslationResponse(response, api, segments, value => { usage = value; }));
+    } catch (error) {
+      const hasOptionalParams = payload.temperature !== undefined || payload.reasoning_effort !== undefined || payload.reasoning !== undefined;
+      if (error instanceof TranslationHttpError && error.status === 400 && hasOptionalParams && provider !== 'ollama') {
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.temperature;
+        delete fallbackPayload.reasoning_effort;
+        delete fallbackPayload.reasoning;
+        timing.retries++;
+        observe(timing, 'retry-without-optional-params', { status: 400, ...(error.detail ? { detail: error.detail } : {}) });
+        await providerRequest(url, { method: 'POST', headers, body: JSON.stringify(fallbackPayload) }, provider,
+          signal, getPriority, timing, response => consumeTranslationResponse(response, api, segments, value => { usage = value; }));
+      } else {
+        throw error;
+      }
+    }
   } finally { addUsage(timing, usage); }
 }
 
@@ -328,7 +363,8 @@ async function performBatch(texts: string[], target: string, provider: string, m
       catch (caught) { combined.throwIfAborted(); error = caught; }
       const missing = ids.filter(id => pending.has(id));
       if (!missing.length) continue;
-      const formatIssue = error === undefined || error instanceof TranslationFormatError || error instanceof TranslationIncompleteError;
+      const http400Split = error instanceof TranslationHttpError && error.status === 400 && missing.length > 1;
+      const formatIssue = error === undefined || error instanceof TranslationFormatError || error instanceof TranslationIncompleteError || http400Split;
       const backoff = formatIssue ? null : retryDelay(error);
       if (!formatIssue && backoff === null) throw error;
       let groups: number[][];
@@ -336,7 +372,7 @@ async function performBatch(texts: string[], target: string, provider: string, m
         timing.formatRecoveries++;
         observe(timing, 'format-recovery', { remaining: missing.length, invalid: invalid.size });
         // Keep confirmed paragraphs and recover only missing IDs in smaller parallel groups.
-        groups = chunksFor(missing, wireTexts, 2500, Math.max(1, Math.ceil(missing.length / 2)));
+        groups = chunksFor(missing, wireTexts, 2500, http400Split ? 1 : Math.max(1, Math.ceil(missing.length / 2)));
       } else {
         timing.retries++;
         observe(timing, 'retry', { remaining: missing.length, waitMs: backoff,

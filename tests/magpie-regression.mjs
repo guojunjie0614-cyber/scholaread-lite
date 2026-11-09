@@ -56,7 +56,7 @@ try {
       builder.onLoad({ filter: /.*/, namespace: 'test' }, args => ({ contents: stubs[args.path], loader: 'js' }));
     } }],
   });
-  const { magpieModels, magpieBaseUrl } = await import(pathToFileURL(path.join(temporary, 'magpie.mjs')));
+  const { magpieModels, magpieBaseUrl, providerModels } = await import(pathToFileURL(path.join(temporary, 'magpie.mjs')));
   const { translateBatch } = await import(pathToFileURL(path.join(temporary, 'translate.mjs')));
   assert.equal(magpieBaseUrl('http://127.0.0.1:3425/'), 'http://127.0.0.1:3425/v1');
   assert.equal(magpieBaseUrl(`${baseUrl}///`), baseUrl);
@@ -69,6 +69,13 @@ try {
     { id: 'codex/model', label: 'Codex', api: 'responses' },
   ]);
   assert.equal(requests.at(-1).headers.authorization, undefined);
+  await assert.rejects(providerModels('openai', { baseUrl, apiKey: '' }), /API Key/);
+  const openaiModels = await providerModels('openai', { baseUrl, apiKey: 'sk-test-123' });
+  assert.equal(requests.at(-1).headers.authorization, 'Bearer sk-test-123');
+  assert.deepEqual(openaiModels, [
+    { id: 'chat/model', label: 'chat/model', api: 'chat-completions' },
+    { id: 'codex/model', label: 'Codex', api: 'chat-completions' },
+  ]);
   catalogue = { data: [] };
   await assert.rejects(magpieModels(baseUrl), /未提供可用于翻译的模型/);
   catalogue = { error: 'not a catalogue' };
