@@ -149,11 +149,11 @@ button { transition: background-color var(--dur-fast) var(--ease-out), color var
 .blk:hover .gutter, .blk:focus-within .gutter { opacity: 1; }
 .gutter button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-control); color: var(--text-3); }
 .gutter button:hover { background: var(--fill-hover); color: var(--text); }
-.figure { margin: 1.4em 0 .8em; padding: 0; text-align: center; overflow-x: auto; }
+.figure { width: fit-content; max-width: 100%; margin: 1.4em auto .8em; padding: 0; text-align: center; overflow-x: auto; }
 .figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: var(--radius-content); }
 .algorithm-image img { max-width: none; }
 [data-theme='dark'] .figure img { opacity: .93; }
-.figure-fallback { color: var(--text-3); font: 13px var(--sans); padding: 24px; background: var(--surface-sunken); border-radius: var(--radius-control); }
+.figure-fallback { min-width: min(320px, 100%); color: var(--text-3); font: 13px var(--sans); padding: 24px; background: var(--surface-sunken); border-radius: var(--radius-control); }
 mark.hl { border-radius: var(--radius-content); padding: .05em 0; color: inherit; box-decoration-break: clone; -webkit-box-decoration-break: clone; cursor: pointer; }
 mark.hl.yellow { background: var(--hl-yellow); } mark.hl.green { background: var(--hl-green); } mark.hl.blue { background: var(--hl-blue); } mark.hl.pink { background: var(--hl-pink); } mark.hl.purple { background: var(--hl-purple); }
 .language-toggle.on { color: var(--accent-text); background: var(--accent-soft); }

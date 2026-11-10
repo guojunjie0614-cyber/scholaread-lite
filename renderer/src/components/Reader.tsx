@@ -750,11 +750,21 @@ export function Reader({
   );
 
 
-  const renderedPages = pages.map(([page, list]) => (
+  const renderedPages = pages.map(([page, list]) => {
+    const pageBadge = chinese
+      ? untranslatedSourcePages.has(page)
+        ? `${untranslatedSourcePages.get(page)} 块未译 · 原稿保留`
+        : !translatablePages.has(page)
+          ? list.some(block => block.kind === 'ref') ? '参考文献 · 原文' : '原稿'
+          : pageTranslations[page]?.error
+            ? '部分段落失败 · 可重试'
+            : pageTranslations[page]?.status === 'translating' && page !== currentPage
+              ? '翻译中'
+              : ''
+      : '';
+    return (
     <section key={page} data-page={page} data-language={chinese && pageTranslations[page]?.status === 'ready' ? 'chinese' : chinese && list.some(block => blockIsChinese(block)) ? 'mixed' : 'original'} lang={chinese && pageTranslations[page]?.status === 'ready' ? settings.targetLang : undefined} className="page-section">
-      {(page > 1 || chinese) && <div className="page-chip">{page > 1 && <span>第 {page} 页</span>}{chinese && <span className={`page-translation-state${pageTranslations[page]?.error ? ' failed' : ''}`}>
-        {untranslatedSourcePages.has(page) ? `${untranslatedSourcePages.get(page)} 块未译 · 原稿保留` : !translatablePages.has(page) ? list.some(block => block.kind === 'ref') ? '参考文献 · 原文' : '原稿' : pageTranslations[page]?.error ? '部分段落失败 · 可重试' : pageTranslations[page]?.status === 'ready' ? '译文' : pageTranslations[page]?.status === 'mixed' ? '原文与译文逐段显示' : pageTranslations[page]?.status === 'translating' ? '翻译中 · 原文保留' : translationProgress && Math.abs(page - currentPage) <= 1 ? '等待翻译 · 原文保留' : '原文 · 阅读时翻译'}
-      </span>}</div>}
+      {(page > 1 || pageBadge) && <div className="page-chip">{page > 1 && <span>第 {page} 页</span>}{pageBadge && <span className={`page-translation-state${pageTranslations[page]?.error ? ' failed' : ''}`}>{pageBadge}</span>}</div>}
       {list.map((block) => (
         <div
           key={block.id}
@@ -824,7 +834,8 @@ export function Reader({
         </div>
       ))}
     </section>
-  ));
+    );
+  });
 
   return (
     <main className="main reader-main">
@@ -883,7 +894,12 @@ export function Reader({
         {providerId !== 'echo' && <button className="btn ghost" disabled={translationProgress !== null} onClick={() => void startTranslation()}>重试</button>}
         <button className="btn ghost" onClick={() => setTranslationError('')}>关闭</button>
       </div>}
-      {chinese && mode === 'reflow' && (currentTranslation.total > 0 || failedTranslationBlocks.length > 0) && <div className="translation-progress" role="status">
+      {chinese && mode === 'reflow' && (
+        (translationProgress !== null && currentTranslation.done < currentTranslation.total - currentTranslation.untranslated) ||
+        currentTranslation.failed > 0 ||
+        currentTranslation.untranslated > 0 ||
+        failedTranslationBlocks.length > 0
+      ) && <div className="translation-progress" role="status">
         <span>{currentTranslation.total > 0 ? `本页已译 ${currentTranslation.done}/${currentTranslation.total} 个文本块` : '本页保留原稿'}</span>
         {currentTranslation.restored > 0 && <span>缓存恢复 {currentTranslation.restored}</span>}
         {currentTranslation.completed > 0 && <span>本次完成 {currentTranslation.completed}</span>}
