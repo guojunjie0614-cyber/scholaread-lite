@@ -1,8 +1,11 @@
 import type { ProviderConfig, ProviderModel } from '../shared/types.js';
 import { modelReasoningLevels } from '../shared/model-reasoning.js';
+import { appFetch } from './http.js';
 
 export const MAGPIE_BASE_URL = 'http://127.0.0.1:3425/v1';
 const modelCatalogues = new Map<string, ProviderModel[]>();
+const ENDPOINT_SUFFIX_RE = /(?:\/chat\/completions|\/completions|\/responses|\/models)+$/i;
+const OFFICIAL_V1_HOSTS = /^(?:api\.openai\.com|api\.deepseek\.com)$/i;
 
 export function magpieBaseUrl(value: string): string {
   let url: URL;
@@ -14,7 +17,37 @@ export function magpieBaseUrl(value: string): string {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
     throw new Error('Magpie 网关地址必须是无账号、查询参数和片段的 HTTP(S) 地址');
   }
-  url.pathname = url.pathname.replace(/\/+$/, '') || '/v1';
+  const strippedPath = url.pathname.replace(/\/+$/, '').replace(ENDPOINT_SUFFIX_RE, '').replace(/\/+$/, '');
+  url.pathname = strippedPath || '/v1';
+  return url.toString().replace(/\/+$/, '');
+}
+
+export function openaiCompatibleBaseUrl(
+  raw: string,
+  fallback = 'https://api.openai.com/v1',
+  label = 'OpenAI 兼容接口',
+): string {
+  const displayLabel = label.endsWith('接口') || label.endsWith('网关') || label.endsWith('服务') ? label : `${label} 接口`;
+  const trimmedRaw = raw.trim();
+  let url: URL;
+  try {
+    url = new URL((trimmedRaw || fallback).trim());
+  } catch {
+    throw new Error(`请输入有效的 ${displayLabel}地址，例如 ${fallback}`);
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new Error(`${displayLabel}地址必须是无账号、查询参数和片段的 HTTP(S) 地址`);
+  }
+  const strippedPath = url.pathname.replace(/\/+$/, '').replace(ENDPOINT_SUFFIX_RE, '').replace(/\/+$/, '');
+  if (strippedPath) {
+    url.pathname = strippedPath;
+  } else if (!trimmedRaw && /\/v1\/?$/i.test(fallback)) {
+    url.pathname = '/v1';
+  } else if (OFFICIAL_V1_HOSTS.test(url.hostname)) {
+    url.pathname = '/v1';
+  } else {
+    url.pathname = '';
+  }
   return url.toString().replace(/\/+$/, '');
 }
 
@@ -37,7 +70,7 @@ export async function magpieModels(baseUrl: string): Promise<ProviderModel[]> {
   const base = magpieBaseUrl(baseUrl);
   let response: Response;
   try {
-    response = await fetch(`${base}/models`, { signal: AbortSignal.timeout(10_000) });
+    response = await appFetch(`${base}/models`, { signal: AbortSignal.timeout(10_000) });
   } catch {
     throw new Error(`无法连接 Magpie 网关（${base}），请确认网关已启动及地址正确`);
   }
@@ -102,9 +135,9 @@ export async function providerModels(
     const root = base.replace(/\/v1$/i, '');
     let response: Response;
     try {
-      response = await fetch(`${root}/api/tags`, { signal: AbortSignal.timeout(10_000) });
+      response = await appFetch(`${root}/api/tags`, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {
-        response = await fetch(`${root}/v1/models`, { signal: AbortSignal.timeout(10_000) });
+        response = await appFetch(`${root}/v1/models`, { signal: AbortSignal.timeout(10_000) });
       }
     } catch {
       throw new Error(`无法连接 Ollama 服务（${root}），请确认 Ollama 已启动及地址正确`);
@@ -132,18 +165,18 @@ export async function providerModels(
   }
   if (provider === 'openai' || provider === 'deepseek') {
     const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
-    const label = provider === 'deepseek' ? 'DeepSeek' : 'OpenAI 兼容';
-    const base = normalizeHttpBaseUrl(config.baseUrl ?? '', defaultBase, label);
+    const label = provider === 'deepseek' ? 'DeepSeek 接口' : 'OpenAI 兼容接口';
+    const base = openaiCompatibleBaseUrl(config.baseUrl ?? '', defaultBase, label);
     const apiKey = config.apiKey?.trim() ?? '';
     if (!apiKey) throw new Error('请先输入 API Key 以拉取可用模型列表');
     let response: Response;
     try {
-      response = await fetch(`${base}/models`, {
+      response = await appFetch(`${base}/models`, {
         headers: { authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
-      throw new Error(`无法连接 ${label} 接口（${base}/models），请检查接口地址与网络连接`);
+      throw new Error(`无法连接 ${label}（${base}），请检查接口地址与网络连接`);
     }
     if (!response.ok) {
       let detail = '';

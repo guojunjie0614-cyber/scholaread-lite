@@ -59,6 +59,51 @@ const mathPattern = () =>
 
 const SYMBOL_HEAD_CHAR = /[A-Za-z\u0370-\u03ff\u1d00-\u1d7f]/;
 const ATOM_CONT_CHAR = /[A-Za-z0-9\u0370-\u03ff\u1d00-\u1d7f]/;
+const CJK_OR_TARGET_SCRIPT = /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/;
+const SECTION_OR_LABEL_HEAD = /^(?:(?:\d+(?:\.\d+)*\.?\s+|[IVXLCDM]+\.\s+|[A-Z]\.\s+)[A-Za-z]{3,}|(?:index\s+terms|abstract|keywords?|fig(?:ure)?\.?\s*\d+|table\s+[IVXLCDM\d]+)\b)/i;
+
+function isEchoableEnglishPrefix(prefix: string): boolean {
+  const plain = unescapeText(
+    prefix
+      .replace(spatialPattern(), ' ')
+      .replace(/<\/?(?:sub|sup)>/g, ' ')
+      .replace(/⟦SLMATH_*:[^⟧]*⟧/g, ' '),
+  ).trim();
+  if (!plain || CJK_OR_TARGET_SCRIPT.test(plain) || !/[A-Za-z]{3,}/.test(plain)) return false;
+  if (SECTION_OR_LABEL_HEAD.test(plain) || /[.!?;:]$/.test(plain)) return true;
+  const words = plain.match(/[A-Za-z]{2,}/g) ?? [];
+  return words.length >= 4;
+}
+
+function extractRemainderAfterEchoedPrefix(candidatePrefix: string, fullText: string, target = 'zh-CN'): string | null {
+  if (/^en\b/i.test(target)) return null;
+  const trimmedPrefix = candidatePrefix.trim();
+  const trimmedFull = fullText.trim();
+  if (!trimmedPrefix || !trimmedFull || trimmedFull.length <= trimmedPrefix.length) return null;
+  if (!isEchoableEnglishPrefix(trimmedPrefix)) return null;
+  const escaped = trimmedPrefix
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\s+/g, '\\s+');
+  const match = trimmedFull.match(new RegExp(`^(${escaped})([\\s\\S]+)$`));
+  if (!match) return null;
+  const matchedHead = match[1];
+  const after = match[2];
+  const validBoundary =
+    /^[\s\r\n:;—–-]+/.test(after) ||
+    /[.!?;:)\]]$/.test(matchedHead) ||
+    CJK_OR_TARGET_SCRIPT.test(after[0] ?? '');
+  if (!validBoundary) return null;
+  const remainder = after.replace(/^[\s\r\n]+/, '').trim();
+  if (!remainder || remainder === matchedHead.trim()) return null;
+  if (/^(?:zh|ja|ko)\b/i.test(target)) {
+    const cjkCount = (remainder.match(new RegExp(CJK_OR_TARGET_SCRIPT.source, 'g')) ?? []).length;
+    if (cjkCount === 0) return null;
+    if (!SECTION_OR_LABEL_HEAD.test(matchedHead.trim()) && !/[.!?;:]$/.test(matchedHead.trim()) && cjkCount < 4) {
+      return null;
+    }
+  }
+  return remainder;
+}
 
 export function protectTranslationMath(source: string, segment: number): { text: string; restore(value: string): string } {
   assertTranslationSource(source);
@@ -74,8 +119,20 @@ export function protectTranslationMath(source: string, segment: number): { text:
     return token + suffix;
   });
   return { text, restore(value) {
-    const markers: string[] = value.match(/⟦SLMATH_*:[^⟧]*⟧/g) ?? [];
     const originalMarkers: string[] = source.match(/⟦SLMATH_*:[^⟧]*⟧/g) ?? [];
+    const legacy = legacyTranslationSource(source);
+    const plainWire = unescapeText(legacy.replace(/<\/?(?:sub|sup)>/g, ''));
+    for (const candidatePrefix of [text, source, legacy, plainWire]) {
+      const remainder = extractRemainderAfterEchoedPrefix(candidatePrefix, value, 'zh-CN');
+      if (!remainder) continue;
+      const remMarkers: string[] = remainder.match(/⟦SLMATH_*:[^⟧]*⟧/g) ?? [];
+      const remReceived = remMarkers.filter(marker => !originalMarkers.includes(marker));
+      if (remReceived.length === tokens.length && remReceived.every((marker, idx) => marker === tokens[idx])) {
+        value = remainder;
+        break;
+      }
+    }
+    const markers: string[] = value.match(/⟦SLMATH_*:[^⟧]*⟧/g) ?? [];
     const received = markers.filter(marker => !originalMarkers.includes(marker));
     if (received.length !== tokens.length || received.some((marker, index) => marker !== tokens[index])) {
       const missing = tokens.filter(token => !received.includes(token));
@@ -225,4 +282,44 @@ export function restoreCachedTranslationMath(source: string, translated: string)
   result += marked.slice(offset);
   translatedRuns(source, result);
   return result;
+}
+
+/**
+ * Strip an echoed English source prefix when a model outputs "<English source> <Translated text>"
+ * while preserving all math/script/spatial integrity invariants on the remaining translation.
+ */
+export function stripEchoedSourcePrefix(source: string, translated: string, target = 'zh-CN'): string {
+  if (!source.trim() || !translated.trim() || /^en\b/i.test(target)) return translated;
+  let legacy = source;
+  try {
+    legacy = legacyTranslationSource(source);
+  } catch {
+    return translated;
+  }
+  const plain = unescapeText(legacy.replace(/<\/?(?:sub|sup)>/g, ''));
+  const candidates = [...new Set([source, legacy, plain])];
+  let current = translated;
+  for (let pass = 0; pass < 2; pass++) {
+    let matchedRemainder: string | null = null;
+    for (const prefix of candidates) {
+      const remainder = extractRemainderAfterEchoedPrefix(prefix, current, target);
+      if (!remainder) continue;
+      try {
+        restoreCachedTranslationMath(source, remainder);
+        matchedRemainder = remainder;
+        break;
+      } catch {
+        try {
+          translatedRuns(source, remainder);
+          matchedRemainder = remainder;
+          break;
+        } catch {
+          /* Remainder does not preserve required math/script structure; do not strip. */
+        }
+      }
+    }
+    if (!matchedRemainder) break;
+    current = matchedRemainder;
+  }
+  return current;
 }

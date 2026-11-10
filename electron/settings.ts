@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { paths } from './paths.js';
 import type { DeepPartial, Settings } from '../shared/types.js';
-import { MAGPIE_BASE_URL, magpieBaseUrl, magpieReasoningEffort } from './magpie.js';
+import { MAGPIE_BASE_URL, magpieBaseUrl, magpieReasoningEffort, openaiCompatibleBaseUrl } from './magpie.js';
 import { REASONING_EFFORTS } from '../shared/model-reasoning.js';
 
 const DEFAULTS: Settings = {
@@ -70,6 +70,21 @@ export const settings = {
     for (const [provider, config] of Object.entries(next.translate.providers)) {
       if (config.reasoningEffort !== undefined && !REASONING_EFFORTS.includes(config.reasoningEffort)) {
         throw new Error(`${provider} 的思考程度无效，请重新选择`);
+      }
+    }
+    for (const [provider, defaultBase, label] of [
+      ['openai', 'https://api.openai.com/v1', 'OpenAI 兼容接口'],
+      ['deepseek', 'https://api.deepseek.com/v1', 'DeepSeek 接口'],
+    ] as const) {
+      const config = next.translate.providers[provider];
+      if (typeof config?.baseUrl === 'string' && config.baseUrl.trim()) {
+        next.translate = {
+          ...next.translate,
+          providers: {
+            ...next.translate.providers,
+            [provider]: { ...config, baseUrl: openaiCompatibleBaseUrl(config.baseUrl, defaultBase, label) },
+          },
+        };
       }
     }
     if (next.translate.activeProvider === 'magpie') {

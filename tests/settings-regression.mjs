@@ -77,6 +77,18 @@ try {
   for (const concurrency of [1, 16]) {
     assert.equal(settings.set({ translate: { concurrency } }).translate.concurrency, concurrency);
   }
+  assert.equal(
+    settings.set({ translate: { providers: { openai: { baseUrl: 'https://api.openai.com/v1/models' } } } }).translate.providers.openai.baseUrl,
+    'https://api.openai.com/v1',
+  );
+  assert.equal(
+    settings.set({ translate: { providers: { deepseek: { baseUrl: 'https://api.deepseek.com/chat/completions' } } } }).translate.providers.deepseek.baseUrl,
+    'https://api.deepseek.com/v1',
+  );
+  assert.equal(
+    settings.set({ translate: { providers: { openai: { baseUrl: 'http://localhost:8000' } } } }).translate.providers.openai.baseUrl,
+    'http://localhost:8000',
+  );
   console.log('PASS settings defaults, concurrency/thinking validation, atomic write and rename failure, recovery and readback');
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });

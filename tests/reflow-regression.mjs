@@ -665,7 +665,23 @@ try {
       item('mance in a candidate-', 49, 134, 245, 10),
       item('record architecture with Q =', 49, 146, 245, 10),
       item('Q. In this setup, we keep high-', 49, 158, 245, 10),
-      item('dynamic signals intact.', 49, 170, 200, 10),
+      item('dynamic signals intact, while hard-', 49, 170, 245, 10),
+      item('ware and soft-', 49, 182, 245, 10),
+      item('ware on the data-', 49, 194, 245, 10),
+      item('set reduce band-', 49, 206, 245, 10),
+      item('width, over-', 49, 218, 245, 10),
+      item('head, and work-', 49, 230, 245, 10),
+      item('load for real-', 49, 242, 245, 10),
+      item('ization, even-', 49, 254, 245, 10),
+      item('tually achieving low-', 49, 266, 245, 10),
+      item('er latency and high-', 49, 278, 245, 10),
+      item('est near sen-', 49, 290, 245, 10),
+      item('sor and ma-', 49, 302, 245, 10),
+      item('chine accuracy in state-of-the-', 49, 314, 245, 10),
+      item('art brain-computer systems with closed-', 49, 326, 245, 10),
+      item('loop and weak-', 49, 338, 245, 10),
+      item('inversion circuits using early-', 49, 350, 245, 10),
+      item('stopping.', 49, 362, 160, 10),
     ]), 2, 'issue-4-text', { keepFigures: true });
     assert.equal(blocks[0].kind, 'h2');
     assert.equal(blocks[0].text, 'I. INTRODUCTION');
@@ -673,7 +689,7 @@ try {
     assert.equal(blocks.length, 2, 'wrapped Q. line must stay in the paragraph rather than becoming h2');
     assert.equal(
       blocks[1].text,
-      'We evaluate high-dimensional data and performance in a candidate-record architecture with Q = Q. In this setup, we keep high-dynamic signals intact.',
+      'We evaluate high-dimensional data and performance in a candidate-record architecture with Q = Q. In this setup, we keep high-dynamic signals intact, while hardware and software on the dataset reduce bandwidth, overhead, and workload for realization, eventually achieving lower latency and highest near sensor and machine accuracy in state-of-the-art brain-computer systems with closed-loop and weak-inversion circuits using early-stopping.',
     );
     assert.equal(blocks[1].textRuns.map(r => r.text).join(''), blocks[1].text);
   });

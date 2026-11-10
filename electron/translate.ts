@@ -3,8 +3,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { ProviderConfig, TranslateResult, TranslationPriority, TranslationOrigin, CachedTranslation, TranslationFailure } from '../shared/types.js';
 import { settings } from './settings.js';
 import { translations } from './db.js';
-import { legacyTranslationSource, protectTranslationMath, restoreCachedTranslationMath, translatedRuns } from '../shared/translation-scripts.js';
-import { MAGPIE_BASE_URL, magpieBaseUrl, magpieReasoningEffort } from './magpie.js';
+import { legacyTranslationSource, protectTranslationMath, restoreCachedTranslationMath, stripEchoedSourcePrefix, translatedRuns } from '../shared/translation-scripts.js';
+import { MAGPIE_BASE_URL, magpieBaseUrl, magpieReasoningEffort, openaiCompatibleBaseUrl } from './magpie.js';
+import { appFetch } from './http.js';
 import {
   consumeTranslationResponse, TranslationSegments, TranslationFormatError, TranslationIncompleteError, TranslationNetworkError,
   type TranslationUsage, type TranslationWireApi,
@@ -64,11 +65,17 @@ export function readCachedTranslations(texts: string[], target: string): (Cached
     for (const candidateSource of legacy === source ? [source] : [source, legacy]) {
       for (const hit of translations.candidates(contentHash(target, candidateSource), target, candidateSource)) {
         if (!hit.result.trim()) continue;
+        const strippedRaw = stripEchoedSourcePrefix(source, hit.result, target);
         let text: string;
-        try { text = restoreCachedTranslationMath(source, hit.result); } catch { continue; }
-        // Adopt under the new geometry-aware key, leaving the legacy record intact.
+        try {
+          text = restoreCachedTranslationMath(source, strippedRaw);
+          text = stripEchoedSourcePrefix(source, text, target);
+        } catch { continue; }
+        // Adopt under the new geometry-aware key, or self-heal polluted bilingual cache entries.
         const hash = candidateSource === source ? hit.hash : hashOf(hit.provider, hit.model, target, source);
-        if (candidateSource !== source) translations.set(hash, target, hit.provider, hit.model, source, text);
+        if (candidateSource !== source || text !== hit.result) {
+          translations.set(hash, target, hit.provider, hit.model, source, text);
+        }
         translations.choose(key, hash);
         return { text, provider: hit.provider, model: hit.model };
       }
@@ -148,7 +155,7 @@ async function providerRequest<T>(url: string, init: RequestInit, provider: stri
     const request = ++timing.requestCount;
     const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(90_000)]);
     let response: Response;
-    try { response = await fetch(url, { ...init, signal: requestSignal }); }
+    try { response = await appFetch(url, { ...init, signal: requestSignal }); }
     catch (error) {
       if (!signal.aborted && requestSignal.aborted) throw new TranslationTimeoutError('request');
       if (error instanceof TypeError) throw new TranslationNetworkError(error);
@@ -201,9 +208,13 @@ async function llmRequest(texts: string[], ids: number[], context: ProviderConte
       messages: [{ role: 'system', content: systemPrompt(target) }, { role: 'user', content: input }] };
   } else {
     const magpie = provider === 'magpie';
-    const baseUrl = magpie ? magpieBaseUrl(cfg.baseUrl ?? MAGPIE_BASE_URL) : (cfg.baseUrl ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
     if (!context.model.trim()) throw new TranslateError('请先在设置 → 翻译服务中选择模型', provider);
     if (!magpie && !cfg.apiKey) throw new TranslateError(`${provider} 未配置 API Key（设置 → 翻译）`, provider);
+    const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
+    const label = provider === 'deepseek' ? 'DeepSeek 接口' : 'OpenAI 兼容接口';
+    const baseUrl = magpie
+      ? magpieBaseUrl(cfg.baseUrl ?? MAGPIE_BASE_URL)
+      : openaiCompatibleBaseUrl(cfg.baseUrl ?? '', defaultBase, label);
     if (!magpie) headers.authorization = `Bearer ${cfg.apiKey}`;
     const effort = magpie ? magpieReasoningEffort(cfg) : cfg.reasoningEffort === 'default' ? undefined : cfg.reasoningEffort;
     api = cfg.api === 'responses' ? 'responses' : 'chat';
@@ -324,7 +335,7 @@ async function performBatch(texts: string[], target: string, provider: string, m
   const commit = (index: number, value: string) => {
     combined.throwIfAborted();
     if (!pending.has(index)) return;
-    const text = value.trim();
+    const text = stripEchoedSourcePrefix(texts[index], value.trim(), target);
     try {
       if (!text) throw new TranslationFormatError('翻译结果缺少段落');
       translatedRuns(texts[index], text);
@@ -357,13 +368,21 @@ async function performBatch(texts: string[], target: string, provider: string, m
       } else pending.add(index);
     });
     const cached = pending.size === 0;
-    for (const ids of chunksFor([...pending].filter(index => !sourceErrors.has(index)), wireTexts)) {
+    const chunks = chunksFor([...pending].filter(index => !sourceErrors.has(index)), wireTexts);
+    let firstChunkError: unknown;
+    for (const ids of chunks) {
       let error: unknown;
       try { await callProvider(wireTexts, ids, context); }
       catch (caught) { combined.throwIfAborted(); error = caught; }
       const missing = ids.filter(id => pending.has(id));
       if (!missing.length) continue;
       const http400Split = error instanceof TranslationHttpError && error.status === 400 && missing.length > 1;
+      const http400SingleInMultiChunk = error instanceof TranslationHttpError && error.status === 400 && missing.length === 1 && chunks.length > 1;
+      if (http400SingleInMultiChunk) {
+        validationErrors.set(missing[0], (error as Error).message);
+        firstChunkError ??= error;
+        continue;
+      }
       const formatIssue = error === undefined || error instanceof TranslationFormatError || error instanceof TranslationIncompleteError || http400Split;
       const backoff = formatIssue ? null : retryDelay(error);
       if (!formatIssue && backoff === null) throw error;
@@ -381,7 +400,16 @@ async function performBatch(texts: string[], target: string, provider: string, m
         groups = [missing];
       }
       const recovered = await Promise.allSettled(groups.map(async group => {
-        await callProvider(wireTexts, group, context);
+        try {
+          await callProvider(wireTexts, group, context);
+        } catch (groupError) {
+          if (formatIssue && (groupError instanceof TranslationFormatError || groupError instanceof TranslationIncompleteError || (groupError instanceof TranslationHttpError && groupError.status === 400))) {
+            for (const id of group) {
+              if (pending.has(id) && !validationErrors.has(id)) validationErrors.set(id, groupError.message);
+            }
+          }
+          throw groupError;
+        }
         if (group.some(id => pending.has(id))) {
           const invalidId = group.find(id => pending.has(id) && validationErrors.has(id));
           throw new TranslationFormatError(invalidId !== undefined ? validationErrors.get(invalidId)! : '翻译结果缺少段落，请重试');
@@ -389,8 +417,12 @@ async function performBatch(texts: string[], target: string, provider: string, m
       }));
       combined.throwIfAborted();
       const failure = recovered.find((item): item is PromiseRejectedResult => item.status === 'rejected');
-      if (failure) throw failure.reason;
+      if (failure) {
+        if (!formatIssue) throw failure.reason;
+        firstChunkError ??= failure.reason;
+      }
     }
+    if (firstChunkError) throw firstChunkError;
     if (sourceErrors.size) throw new Error([...sourceErrors.values()][0]);
     status = 'completed';
     return { results: out, provider, model, cached, origins };

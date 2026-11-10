@@ -58,6 +58,9 @@ const server = http.createServer(async (req, res) => {
   if (input.startsWith('long-rate')) { res.writeHead(429, { 'retry-after': '30' }); return res.end('{}'); }
   if (input.startsWith('network')) return req.socket.destroy();
   if (input.startsWith('malformed') && segments.length > 1) return respond('unseparated text');
+  if (input.includes('(echo-en)')) {
+    return respond(segments.map(s => `⟦SEG:${s.id}⟧\n${s.text} 译:${s.text}`).join('\n'));
+  }
   if (input.startsWith('scripts-bad')) return respond(`⟦SEG:${segments[0].id}⟧\nscripts removed`);
   if (input.startsWith('empty')) return respond(`⟦SEG:${segments[0].id}⟧\n`);
   if (input.startsWith('controlled')) return controlled.set(input, () => respond(translated()));
@@ -80,7 +83,7 @@ try {
         ? 'export const settings={get:()=>globalThis.backendTestSettings};'
         : 'export const translations={candidates:(_key,target,source)=>[...globalThis.backendTestCache.values()].filter(row=>row.target===target&&row.source===source&&row.provider!=="echo"),choose:()=>{},set:(key,target,provider,model,source,result)=>globalThis.backendTestCache.set(key,{hash:key,target,provider,model,source,result})};' }));
     } }] });
-  const { translateBatch } = await import(pathToFileURL(path.join(temporary, 'translate.mjs')));
+  const { translateBatch, readCachedTranslations } = await import(pathToFileURL(path.join(temporary, 'translate.mjs')));
   const { magpieModels } = await import(pathToFileURL(path.join(temporary, 'magpie.mjs')));
   const catalogue = await magpieModels(baseUrl);
   assert.deepEqual(catalogue[0].reasoningLevels, ['low', 'high', 'max']);
@@ -173,6 +176,61 @@ try {
       return true;
     },
   );
+  // Issue #5 rework: Cross-chunk HTTP 400 isolation — a failing segment in chunk 1 must not abort chunk 2
+  const chunk1Healthy = `healthy chunk1 ${'a'.repeat(2400)}`;
+  const chunk1Bad = `bad-400-seg ${'b'.repeat(2400)}`;
+  const chunk2Healthy = `healthy chunk2 ${'c'.repeat(2400)}`;
+  await assert.rejects(
+    translateBatch([chunk1Healthy, chunk1Bad, chunk2Healthy]),
+    err => {
+      assert.equal(err.result.results[0], `译:${chunk1Healthy}`);
+      assert.equal(err.result.results[1], '');
+      assert.equal(err.result.results[2], `译:${chunk2Healthy}`);
+      assert.equal(err.result.failures.length, 1);
+      assert.equal(err.result.failures[0].index, 1);
+      return true;
+    },
+  );
+  // Issue #6-3: Strip echoed English source prefix on live responses (including protected math tokens) and self-heal polluted cache
+  const echoedHeading = 'B. Embedded Channel Selection (echo-en)';
+  const echoedMath = 'The current I<sub>D</sub> flows through M<sub>1</sub> in Conv2D (echo-en).';
+  const echoedRes = await translateBatch([echoedHeading, echoedMath]);
+  assert.equal(echoedRes.results[0], `译:${echoedHeading}`);
+  assert.equal(echoedRes.results[1], `译:${echoedMath}`);
+  const pollutedSource = 'B. Embedded Channel Selection';
+  globalThis.backendTestCache.set('polluted-hash', {
+    hash: 'polluted-hash',
+    target: 'zh-CN',
+    provider: 'openai',
+    model: 'gpt-5.4',
+    source: pollutedSource,
+    result: 'B. Embedded Channel Selection B. 嵌入式通道选择',
+  });
+  const healed = readCachedTranslations([pollutedSource], 'zh-CN');
+  assert.equal(healed[0]?.text, 'B. 嵌入式通道选择');
+  assert.equal(globalThis.backendTestCache.get('polluted-hash')?.result, 'B. 嵌入式通道选择');
+  // Legitimate short English proper nouns/terms followed by a Chinese head noun must not be stripped or corrupted
+  globalThis.backendTestCache.set('monte-carlo-hash', {
+    hash: 'monte-carlo-hash',
+    target: 'zh-CN',
+    provider: 'openai',
+    model: 'gpt-5.4',
+    source: 'Monte Carlo',
+    result: 'Monte Carlo 方法',
+  });
+  globalThis.backendTestCache.set('random-forest-hash', {
+    hash: 'random-forest-hash',
+    target: 'zh-CN',
+    provider: 'openai',
+    model: 'gpt-5.4',
+    source: 'Random Forest',
+    result: 'Random Forest 分类器',
+  });
+  const preservedTerms = readCachedTranslations(['Monte Carlo', 'Random Forest'], 'zh-CN');
+  assert.equal(preservedTerms[0]?.text, 'Monte Carlo 方法');
+  assert.equal(preservedTerms[1]?.text, 'Random Forest 分类器');
+  assert.equal(globalThis.backendTestCache.get('monte-carlo-hash')?.result, 'Monte Carlo 方法');
+  assert.equal(globalThis.backendTestCache.get('random-forest-hash')?.result, 'Random Forest 分类器');
   const beforeServer = requests.length;
   await assert.rejects(translateBatch(['server-error one', 'server-error two']), /503/);
   assert.equal(requests.length - beforeServer, 2, 'server failures retry once, without per-segment fanout');

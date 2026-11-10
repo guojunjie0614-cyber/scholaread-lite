@@ -32,6 +32,12 @@ export function spaceThreshold(prevInk: RawItem | null, nextInk: RawItem): numbe
     if (/^[.,;:!?)]/.test(nextInk.str.trim()))
       return Math.max(1.2, Math.max(prevInk.h, nextInk.h) * .20);
   }
+  if (prevInk && nextInk.h < prevInk.h * .88 && Math.abs(nextInk.y - prevInk.y) > prevInk.h * .08 &&
+      /[\p{L}\p{N})\]]$/u.test(prevInk.str.trim()))
+    return Math.max(1.5, prevInk.h * .22);
+  if (prevInk && prevInk.h < nextInk.h * .88 && Math.abs(nextInk.y - prevInk.y) > nextInk.h * .08 &&
+      /^[.,;:!?)\]}]/.test(nextInk.str.trim()))
+    return Math.max(1.5, nextInk.h * .20);
   return Math.max(.5, nextInk.h * .13);
 }
 
@@ -51,10 +57,27 @@ export function filterSubSpaceItems(sorted: RawItem[]): RawItem[] {
   });
 }
 
+export function splitTrailingAccentItems(items: RawItem[]): RawItem[] {
+  const result: RawItem[] = [];
+  for (const item of items) {
+    const match = /^(\s*\S*[^\s\u0300-\u036f\u20ddˆ˙¯˜])([\u0300-\u036f\u20ddˆ˙¯˜]+\s*)$/u.exec(item.str);
+    if (!match) { result.push(item); continue; }
+    const [, prefix, accent] = match;
+    const accentWidth = Math.min(item.w * .55, Math.max(1.8, item.h * .36 * accent.trim().length));
+    const prefixWidth = Math.max(0, item.w - accentWidth);
+    result.push(
+      { ...item, str: prefix, w: prefixWidth },
+      { ...item, str: accent, x: item.x + prefixWidth, w: item.w - prefixWidth },
+    );
+  }
+  return result;
+}
+
 /** Keep canonical source text, with independent geometry for overlapping scripts. */
 export function lineTextRuns(line: InlineLine, tableMarker = false): TextRun[] {
   const runs: TextRun[] = [];
-  const ordered = filterSubSpaceItems([...line.items].sort((a, b) => a.x - b.x));
+  const ordered = splitTrailingAccentItems(filterSubSpaceItems([...line.items].sort((a, b) => a.x - b.x)));
+  const indexOf = new Map(ordered.map((item, idx) => [item, idx]));
   const scripts = new Map<RawItem, 'sub' | 'sup'>();
   for (const item of ordered) {
     const marker = tableMarker && item === ordered.find(it => it.str.trim()) && /^(?:[*∗†‡§¶]|notes?\s*[:.]|注\s*[:：])/i.test(item.str.trim());
@@ -65,20 +88,29 @@ export function lineTextRuns(line: InlineLine, tableMarker = false): TextRun[] {
   }
   const roots = ordered.filter(item => item.str.trim() && !scripts.has(item) && !ACCENT.test(item.str.trim()) &&
     (extensionOperator(item) || Math.abs(item.y - line.y) < line.size * .3));
+  const hasInterveningRoot = (from: RawItem, to: RawItem) => {
+    const start = indexOf.get(from) ?? -1, end = indexOf.get(to) ?? -1;
+    return roots.some(r => {
+      const idx = indexOf.get(r) ?? -1;
+      return idx > start && idx < end && r.x >= from.x + from.w - 1;
+    });
+  };
   const hosts = new Map<RawItem, RawItem>();
   for (const item of ordered.filter(it => scripts.has(it) || ACCENT.test(it.str.trim()))) {
     const accent = ACCENT.test(item.str.trim());
     const candidates = roots.filter(root => accent
       ? (item.str === '̸' ? /[=<>]$/.test(root.str.trim()) : /[\p{L}\p{N}]$/u.test(root.str.trim())) &&
         item.x + item.w >= root.x - line.size * .3 && item.x <= root.x + root.w + line.size * .3 && item.y <= root.y + line.size * .12
-      : root.x < item.x && root.x + root.w <= item.x + line.size * .6 && item.x - root.x - root.w < line.size * 3.2);
+      : root.x < item.x && root.x + root.w <= item.x + line.size * .6 && item.x - root.x - root.w < line.size * 3.2 &&
+        !hasInterveningRoot(root, item));
     const host = candidates.sort((a, b) => accent
       ? Math.abs(item.x - (a.x + a.w / 2)) - Math.abs(item.x - (b.x + b.w / 2))
       : b.x + b.w - a.x - a.w)[0];
     if (host) hosts.set(item, host);
     else {
       const previous = ordered.filter(it => hosts.has(it) && it.x <= item.x &&
-        item.x - it.x - it.w < line.size * .85 && Math.abs(it.y - item.y) < line.size * .5)
+        item.x - it.x - it.w < line.size * .85 && Math.abs(it.y - item.y) < line.size * .5 &&
+        !hasInterveningRoot(it, item))
         .sort((a, b) => b.x + b.w - a.x - a.w)[0];
       if (previous) hosts.set(item, hosts.get(previous)!);
     }
@@ -149,9 +181,10 @@ export function lineTextRuns(line: InlineLine, tableMarker = false): TextRun[] {
     if (!indices.length) continue;
     for (let index = indices[0]; index <= indices.at(-1)!; index++) {
       const run = runs[index];
-      if (!run.mathPosition && /^\s+$/.test(run.text)) run.mathPosition = {
-        group: group.id, x: 0, y: 0, width: 0, size: 1,
+      if (!run.mathPosition) run.mathPosition = {
+        group: group.id, x: 0, y: 0, width: /^\s+$/.test(run.text) ? 0 : Math.max(.2, run.text.length * .45), size: 1,
       };
+      else if (run.mathPosition.group !== group.id) run.mathPosition.group = group.id;
     }
   }
   return runs;

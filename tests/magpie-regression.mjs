@@ -49,17 +49,33 @@ try {
     './db.js': 'export const translations={candidates:()=>[],choose:()=>{},set:()=>{}};',
   };
   await build({
-    entryPoints: ['electron/magpie.ts', 'electron/translate.ts'], bundle: true,
+    entryPoints: ['electron/magpie.ts', 'electron/translate.ts', 'electron/http.ts'], bundle: true,
     platform: 'node', format: 'esm', target: 'node22', outdir: temporary, outExtension: { '.js': '.mjs' },
     plugins: [{ name: 'isolated-translation', setup(builder) {
       builder.onResolve({ filter: /^\.\/(settings|db)\.js$/ }, args => ({ path: args.path, namespace: 'test' }));
       builder.onLoad({ filter: /.*/, namespace: 'test' }, args => ({ contents: stubs[args.path], loader: 'js' }));
     } }],
   });
-  const { magpieModels, magpieBaseUrl, providerModels } = await import(pathToFileURL(path.join(temporary, 'magpie.mjs')));
+  const { magpieModels, magpieBaseUrl, openaiCompatibleBaseUrl, providerModels } = await import(pathToFileURL(path.join(temporary, 'magpie.mjs')));
   const { translateBatch } = await import(pathToFileURL(path.join(temporary, 'translate.mjs')));
+  const { parseScutilProxy } = await import(pathToFileURL(path.join(temporary, 'http.mjs')));
+  assert.deepEqual(
+    parseScutilProxy('<dictionary> {\n  HTTPEnable : 1\n  HTTPPort : 7897\n  HTTPProxy : 127.0.0.1\n  HTTPSEnable : 1\n  HTTPSPort : 7897\n  HTTPSProxy : 127.0.0.1\n}'),
+    { httpProxy: 'http://127.0.0.1:7897', httpsProxy: 'http://127.0.0.1:7897' },
+  );
+  assert.deepEqual(parseScutilProxy('<dictionary> {\n  HTTPEnable : 0\n  HTTPSEnable : 0\n}'), {});
   assert.equal(magpieBaseUrl('http://127.0.0.1:3425/'), 'http://127.0.0.1:3425/v1');
+  assert.equal(magpieBaseUrl('http://127.0.0.1:3425/v1/models'), 'http://127.0.0.1:3425/v1');
+  assert.equal(magpieBaseUrl('http://127.0.0.1:3425/v1/chat/completions'), 'http://127.0.0.1:3425/v1');
   assert.equal(magpieBaseUrl(`${baseUrl}///`), baseUrl);
+  assert.equal(openaiCompatibleBaseUrl('https://api.openai.com'), 'https://api.openai.com/v1');
+  assert.equal(openaiCompatibleBaseUrl('https://api.openai.com/v1/models'), 'https://api.openai.com/v1');
+  assert.equal(openaiCompatibleBaseUrl('https://api.openai.com/v1/models/models'), 'https://api.openai.com/v1');
+  assert.equal(openaiCompatibleBaseUrl('https://api.openai.com/v1/chat/completions'), 'https://api.openai.com/v1');
+  assert.equal(openaiCompatibleBaseUrl('https://api.openai.com/v1/responses'), 'https://api.openai.com/v1');
+  assert.equal(openaiCompatibleBaseUrl('https://openrouter.ai/api/v1/models'), 'https://openrouter.ai/api/v1');
+  assert.equal(openaiCompatibleBaseUrl('http://localhost:8000'), 'http://localhost:8000');
+  assert.equal(openaiCompatibleBaseUrl('http://localhost:8000/models'), 'http://localhost:8000');
   for (const invalid of ['file:///tmp/gateway', 'http://name:password@localhost/v1', `${baseUrl}?key=test`, '']) {
     assert.throws(() => magpieBaseUrl(invalid));
   }
@@ -70,12 +86,20 @@ try {
   ]);
   assert.equal(requests.at(-1).headers.authorization, undefined);
   await assert.rejects(providerModels('openai', { baseUrl, apiKey: '' }), /API Key/);
-  const openaiModels = await providerModels('openai', { baseUrl, apiKey: 'sk-test-123' });
+  const openaiModels = await providerModels('openai', { baseUrl: `${baseUrl}/models`, apiKey: 'sk-test-123' });
+  assert.equal(requests.at(-1).url, '/v1/models');
   assert.equal(requests.at(-1).headers.authorization, 'Bearer sk-test-123');
   assert.deepEqual(openaiModels, [
     { id: 'chat/model', label: 'chat/model', api: 'chat-completions' },
     { id: 'codex/model', label: 'Codex', api: 'chat-completions' },
   ]);
+  await assert.rejects(
+    providerModels('openai', { baseUrl: 'http://127.0.0.1:9/v1/models', apiKey: 'sk-test-123' }),
+    err => {
+      assert.equal(err.message, '无法连接 OpenAI 兼容接口（http://127.0.0.1:9/v1），请检查接口地址与网络连接');
+      return true;
+    },
+  );
   catalogue = { data: [] };
   await assert.rejects(magpieModels(baseUrl), /未提供可用于翻译的模型/);
   catalogue = { error: 'not a catalogue' };
@@ -111,7 +135,9 @@ try {
   await assert.rejects(translateBatch(['sample']), /未配置 API Key/);
   assert.equal(requests.length, before, 'invalid configuration must fail before a request');
   globalThis.magpieTestSettings.translate.providers.openai.apiKey = 'local-test-only';
+  globalThis.magpieTestSettings.translate.providers.openai.baseUrl = `${baseUrl}/models`;
   await translateBatch(['sample']);
+  assert.equal(requests.at(-1).url, '/v1/chat/completions');
   assert.equal(requests.at(-1).headers.authorization, 'Bearer local-test-only');
 
   const config = path.join(temporary, 'config.json');

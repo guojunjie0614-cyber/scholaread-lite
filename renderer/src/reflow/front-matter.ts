@@ -25,7 +25,7 @@ export function identifyPublicationHeaders(lines: FrontLine[], height: number, p
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const topNotice = line.y < height * .055 && ACCEPTANCE_NOTICE.test(line.text);
-    const bottomNotice = line.y > height * .95 && RIGHTS_NOTICE.test(line.text);
+    const bottomNotice = line.y > height * .93 && RIGHTS_NOTICE.test(line.text);
     if (topNotice || bottomNotice || line.y < height * .09 &&
       (ISSCC_HEADER.test(line.text) || PUBLICATION.test(line.text) || JOURNAL_LABEL.test(line.text) ||
         /^NATURE COMMUNICATIONS\s*\|/i.test(line.text) || /^ARTICLE$/.test(line.text) ||
@@ -35,7 +35,7 @@ export function identifyPublicationHeaders(lines: FrontLine[], height: number, p
     // edges need not align; the common band, font and horizontal region do.
     for (let j = i + 1; j < lines.length; j++) {
       const next = lines[j], previous = lines[j - 1];
-      if ((topNotice ? next.y >= height * .055 : next.y <= height * .95) ||
+      if ((topNotice ? next.y >= height * .055 : next.y <= height * .93) ||
         next.y - previous.y > line.size * 1.8 || Math.abs(next.size - line.size) > .8 ||
         !horizontalNoticeOverlap(line, next)) break;
       next.readingRole = 'publication';
@@ -59,7 +59,7 @@ export function identifyRepeatedPublicationHeaders(blocks: Block[], pageHeights:
     if (!height || !block.bbox || block.kind !== 'p' || block.readingRole) continue;
     const top = block.bbox[1] < height * .09;
     if (top && (ACCEPTANCE_NOTICE.test(block.text) || block.page > 1 && isRunningTitle(block.text)) ||
-      block.bbox[1] > height * .95 && RIGHTS_NOTICE.test(block.text)) {
+      block.bbox[1] > height * .93 && RIGHTS_NOTICE.test(block.text)) {
       block.readingRole = 'publication';
       continue;
     }
@@ -85,7 +85,7 @@ export function identifyRepeatedPublicationHeaders(blocks: Block[], pageHeights:
       .sort((a, b) => a.bbox![1] - b.bbox![1]);
     for (const block of nearby) {
       const box = block.bbox!;
-      if (box[1] < seed.bbox[1] || (top ? box[3] >= height * .055 : box[1] <= height * .95) ||
+      if (box[1] < seed.bbox[1] || (top ? box[3] >= height * .055 : box[1] <= height * .93) ||
         box[1] - edge > (seed.sourceFontSize ?? 6) * 1.8 || box[3] - box[1] > 18 ||
         !horizontalNoticeOverlap({ x0: seed.bbox[0], x1: seed.bbox[2] }, { x0: box[0], x1: box[2] })) continue;
       block.readingRole = 'publication';

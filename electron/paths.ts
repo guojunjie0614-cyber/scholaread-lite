@@ -2,6 +2,9 @@ import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 
+app.setName('ScholarLite');
+app.setPath('userData', path.join(app.getPath('appData'), 'ScholarLite'));
+
 const root = () => app.getPath('userData');
 
 export const paths = {

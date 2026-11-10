@@ -84,9 +84,11 @@ function MagpieModels({ baseUrl, selected, onSelect, onModels }: { baseUrl: stri
   }, [baseUrl, revision, onModels]);
   return <div className="settings-field"><span>模型</span>
     <div className="gateway-model-control">
-      <DesktopMenu ariaLabel="Magpie 模型" className="settings-menu" width={330} align="end" disabled={loading} items={models.map(model => ({
-        id: model.id, label: model.label, selected: model.id === selected, onSelect: () => onSelect(model),
-      }))}><span>{loading ? '正在读取模型…' : models.find(model => model.id === selected)?.label ?? (selected || '选择模型')}</span><IconChevronDown aria-hidden="true" /></DesktopMenu>
+      <DesktopMenu ariaLabel="Magpie 模型" className="settings-menu" width={330} align="end" disabled={loading}
+        searchable={models.length > 8} searchPlaceholder="搜索模型…"
+        items={models.map(model => ({
+          id: model.id, label: model.label, selected: model.id === selected, onSelect: () => onSelect(model),
+        }))}><span>{loading ? '正在读取模型…' : models.find(model => model.id === selected)?.label ?? (selected || '选择模型')}</span><IconChevronDown aria-hidden="true" /></DesktopMenu>
       <button type="button" className="btn ghost gateway-refresh" disabled={loading} onClick={() => setRevision(value => value + 1)}>刷新</button>
     </div>
     <p className={error ? 'gateway-error' : undefined} role={error ? 'alert' : 'status'}>{loading ? '正在连接 Magpie 网关' : error || (models.length ? `已连接 · ${models.length} 个可用模型` : '网关没有返回可用模型，请检查 Magpie 中的模型配置。')}</p>
@@ -151,6 +153,7 @@ function ProviderModelField({
         onChange={e => onChange(e.target.value)} />
       {models.length > 0 && (
         <DesktopMenu ariaLabel="可用模型列表" className="settings-menu provider-model-picker" width={310} align="end" disabled={loading}
+          searchable={models.length > 8} searchPlaceholder="搜索模型…"
           items={models.map(model => ({
             id: model.id,
             label: model.label === model.id ? model.id : `${model.label} (${model.id})`,
@@ -310,14 +313,14 @@ export function SettingsDialog({ settings, providers, onSave, onClose, onLibrary
             onModels={receiveModels}
             onSelect={model => patchProvider({ model: model.id, api: model.api,
               reasoningEffort: modelReasoningLevels(model.reasoningLevels).includes(effort) ? effort : 'default' })} />}
-          {['magpie', 'openai', 'deepseek'].includes(activeId) && <div className="settings-field"><span>思考程度</span>
+          {(activeId === 'magpie' || (['openai', 'deepseek'].includes(activeId) && (thinkingOptions.length > 1 || effort !== 'default'))) && <div className="settings-field"><span>思考程度</span>
             <DesktopMenu ariaLabel="思考程度" className="settings-menu" width={220} align="end" items={thinkingOptions.map(level => ({
               id: level, label: thinkingLabels[level], selected: (active.reasoningEffort ?? 'default') === level,
               onSelect: () => patchProvider({ reasoningEffort: level as ProviderConfig['reasoningEffort'] }),
             }))}><span>{thinkingLabels[active.reasoningEffort ?? 'default']}</span><IconChevronDown aria-hidden="true" /></DesktopMenu>
             <p>{activeId === 'magpie'
               ? currentCatalogue ? '可选档位来自当前模型的网关能力；模型默认不发送思考参数。' : '尚未取得当前网关的模型能力，仅可选择模型默认；已保存的档位保持不变。'
-              : '当前接口未提供模型思考能力，使用模型默认，不发送思考参数。'}</p>
+              : '当前接口未提供模型思考能力，请重置为模型默认后保存。'}</p>
           </div>}
           <div className="settings-field"><span>目标语言</span>
             <DesktopMenu ariaLabel="目标语言" className="settings-menu" width={200} align="end" items={LANGS.map(([code, label]) => ({

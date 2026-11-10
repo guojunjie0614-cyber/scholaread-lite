@@ -1,4 +1,5 @@
 import type { PaperMeta } from '../shared/types.js';
+import { appFetch } from './http.js';
 
 const UA = 'ScholarLite/0.1 (mailto:noreply@example.com)';
 
@@ -13,7 +14,7 @@ const stripTags = (s: string) =>
     .trim();
 
 async function getJson(url: string): Promise<any> {
-  const res = await fetch(url, {
+  const res = await appFetch(url, {
     headers: { 'user-agent': UA, accept: 'application/json' },
     signal: AbortSignal.timeout(20_000),
   });
@@ -22,7 +23,7 @@ async function getJson(url: string): Promise<any> {
 }
 
 async function getText(url: string): Promise<string> {
-  const res = await fetch(url, {
+  const res = await appFetch(url, {
     headers: { 'user-agent': UA },
     signal: AbortSignal.timeout(20_000),
   });
