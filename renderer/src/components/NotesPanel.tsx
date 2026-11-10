@@ -79,7 +79,7 @@ export function NotesPanel({ notes, blocks, onJump, onUpdate, onRemove, open = t
       <button id="reader-outline-tab" role="tab" aria-selected={tab === 'outline'} aria-controls="reader-notes-content" tabIndex={tab === 'outline' ? 0 : -1}
         className={tab === 'outline' ? 'on' : ''} onClick={() => setTab('outline')}>大纲</button>
       <button id="reader-ai-tab" role="tab" aria-selected={tab === 'ai'} aria-controls="reader-ai-content" tabIndex={tab === 'ai' ? 0 : -1}
-        className={tab === 'ai' ? 'on' : ''} onClick={() => setTab('ai')}>AI</button>
+        className={tab === 'ai' ? 'on' : ''} onClick={() => setTab('ai')}>对话</button>
       <div className="spacer" />
     </SelectionGroup>
     <div ref={contentRef} hidden={tab === 'ai'} className="panel-body" id="reader-notes-content" role="tabpanel" aria-labelledby={`reader-${tab === 'notes' ? 'notes' : 'outline'}-tab`}>

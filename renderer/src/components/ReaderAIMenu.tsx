@@ -24,6 +24,6 @@ export function ReaderAIMenu({ x, y, onClose, onExplain, onQuote }: {
       }
     }}>
     <button role="menuitem" onClick={onExplain}>发送给 AI 解读</button>
-    <button role="menuitem" onClick={onQuote}>引用到 AI</button>
+    <button role="menuitem" onClick={onQuote}>引用到对话</button>
   </div>, document.body);
 }
