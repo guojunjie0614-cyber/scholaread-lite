@@ -80,11 +80,12 @@ button { transition: background-color var(--dur-fast) var(--ease-out), color var
 .panel-toggle:is(:hover,:focus-visible) .sidebar-toggle-arrow { opacity: 1; transform: translate(52.08333%,50.625%) scale(1); }
 .panel-toggle[data-open='true']:is(:hover,:focus-visible) .sidebar-toggle-arrow { transform: translate(52.08333%,50.625%) scale(-1,1); }
 
-/* Controls share one neutral visual language, with blue reserved for confirmation. */
+/* Primary actions share one neutral treatment; blue identifies links, focus and selection. */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .btn:hover:not(:disabled) { background: var(--fill-hover); border-color: var(--border); }
-.btn.primary { background: var(--accent-solid); border-color: transparent; color: #fff; }
-.btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-solid), black 12%); }
+.btn.primary { background: var(--text); border-color: transparent; color: var(--surface-paper); box-shadow: none; }
+.btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 85%, var(--surface-paper)); border-color: transparent; }
+.btn.primary:disabled { background: var(--fill-hover); color: var(--text-disabled); border-color: transparent; opacity: 1; }
 .btn.danger { color: var(--danger); border-color: color-mix(in srgb,var(--danger),transparent 65%); }
 .btn.danger:hover:not(:disabled) { background: var(--danger-soft); }
 .btn.ghost, .btn.back { border-color: transparent; background: transparent; color: var(--text-2); }

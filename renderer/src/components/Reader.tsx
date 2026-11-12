@@ -1269,13 +1269,15 @@ const FaithfulPage = memo(function FaithfulPage({ doc, pageNumber, zoom }: { doc
   }, [nearby, doc, pageNumber, zoom, retry]);
 
   return <div className="page" ref={ref} data-page={pageNumber} aria-label={`第 ${pageNumber} 页原稿`} aria-busy={loading}>
-    <canvas ref={canvasRef} width={800} height={1100} />
-    <div ref={textRef} className="textLayer" />
-    {doc && pageSize && <RegionAIButton doc={doc} page={pageNumber} crop={[0, 0, ...pageSize]} caption={`第 ${pageNumber} 页原稿`} />}
-    {loading && <div className="page-render-status" role="status">正在加载原页…</div>}
-    {textError && <div className="page-text-error" role="status">文字层加载失败，可切换重排模式或发送本页图片。</div>}
-    {error && <div className="page-render-error" role="alert">原页加载失败：{error}
-      <button className="btn ghost" onClick={() => setRetry(value => value + 1)}>重新加载</button>
-    </div>}
+    <div className="page-content">
+      <canvas ref={canvasRef} width={800} height={1100} />
+      <div ref={textRef} className="textLayer" />
+      {loading && <div className="page-render-status" role="status">正在加载原页…</div>}
+      {textError && <div className="page-text-error" role="status">文字层加载失败，可切换重排模式或发送本页图片。</div>}
+      {error && <div className="page-render-error" role="alert">原页加载失败：{error}
+        <button className="btn ghost" onClick={() => setRetry(value => value + 1)}>重新加载</button>
+      </div>}
+    </div>
+    {doc && pageSize && <div className="region-actions"><RegionAIButton doc={doc} page={pageNumber} crop={[0, 0, ...pageSize]} caption={`第 ${pageNumber} 页原稿`} /></div>}
   </div>;
 });

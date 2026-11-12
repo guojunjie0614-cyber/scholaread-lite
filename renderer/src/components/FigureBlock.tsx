@@ -30,7 +30,7 @@ export function FigureBlock({ doc, page, crop, caption, kind = 'figure', sourceF
           {error ? `${label}加载失败：${error}。可切到原页查看。` : `正在加载${label}…`}
         </div>
       )}
-      {doc && src && <RegionAIButton doc={doc} page={page} crop={crop} caption={caption} />}
+      {doc && src && <div className="region-actions"><RegionAIButton doc={doc} page={page} crop={crop} caption={caption} /></div>}
       {preview && doc && src && <ImagePreview doc={doc} page={page} crop={crop} src={src} title={`第 ${page} 页 · ${label}`} onClose={() => setPreview(false)} />}
     </div>
   );

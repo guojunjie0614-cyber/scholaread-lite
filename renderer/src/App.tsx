@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent } from 'react';
 import type { Block, Note, Paper, PaperMetadataChange, ProviderInfo, Settings, Collection, AppAppearance } from '@shared/types';
 import { api } from '@/lib/api';
+import { CHAT_MIN_WIDTH, readerLayout } from '@/lib/reader-layout';
 import { loadPdf, releasePdfResources, type PDFDocumentProxy } from '@/lib/pdf';
 import { recognizePage } from '@/reflow/ocr';
 import { analyzeDocument, REFLOW_ENGINE_VERSION } from '@/reflow/analyze';
@@ -58,11 +59,10 @@ export default function App() {
   useEffect(() => {
     const resize = () => {
       setViewportWidth(window.innerWidth);
-      if (panelTab === 'ai' && window.innerWidth < 1150) setSidebarOpen(false);
     };
     resize(); window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
-  }, [panelTab]);
+  }, []);
 
   const docRef = useRef<PDFDocumentProxy | null>(null);
   const currentIdRef = useRef(currentId);
@@ -444,10 +444,10 @@ export default function App() {
   };
 
   const current = papers.find((p) => p.id === currentId) ?? null;
+  const { chatWidth: visibleChatWidth, maxChatWidth, sidebarVisible } = readerLayout(viewportWidth, chatWidth, sidebarOpen, Boolean(current && panelOpen && panelTab === 'ai'));
   const openChat = useCallback((request: ChatRequest) => {
     if (request.paperId !== currentIdRef.current) return;
     setChatRequest(request); setPanelTab('ai'); setPanelOpen(true);
-    if (window.innerWidth < 1150) setSidebarOpen(false);
   }, []);
   const handleChatRequest = useCallback((id: string) => setChatRequest(value => value?.id === id ? null : value), []);
   const jumpToReference = (reference: PaperReference) => {
@@ -486,13 +486,13 @@ export default function App() {
   return (
     <ReaderAIContext.Provider value={current ? { paper: current, blocks, onRequest: openChat, onError: notify } : null}>
     <div
-      className={`app${panelOpen && current ? '' : ' panel-collapsed'}${sidebarOpen ? '' : ' rail-collapsed'}${current ? '' : ' library-view'}${panelTab === 'ai' ? ' ai-panel-active' : ''}`}
-      style={panelTab === 'ai' ? { '--panel': `${Math.min(chatWidth, Math.max(340, viewportWidth - 420))}px` } as React.CSSProperties : undefined}
+      className={`app${panelOpen && current ? '' : ' panel-collapsed'}${sidebarVisible ? '' : ' rail-collapsed'}${current ? '' : ' library-view'}${panelTab === 'ai' ? ' ai-panel-active' : ''}`}
+      style={panelTab === 'ai' ? { '--panel': `${visibleChatWidth}px` } as React.CSSProperties : undefined}
       onDragOver={(e) => e.preventDefault()}
       onDrop={onDrop}
     >
       <Library
-        open={sidebarOpen}
+        open={sidebarVisible}
         papers={papers}
         collections={collections}
         scope={scope}
@@ -595,7 +595,7 @@ export default function App() {
           key={current.id}
           open={panelOpen}
           tab={panelTab}
-          onTabChange={tab => { setPanelTab(tab); if (tab === 'ai' && window.innerWidth < 1150) setSidebarOpen(false); }}
+          onTabChange={setPanelTab}
           chat={<ChatPanel paper={current} request={chatRequest?.paperId === current.id ? chatRequest : null}
             onRequestHandled={handleChatRequest} onJump={jumpToReference} onError={notify}
             onSaveNote={async text => {
@@ -627,16 +627,16 @@ export default function App() {
           }}
         />
       )}
-      {current && panelOpen && panelTab === 'ai' && <div className="chat-panel-resize" role="separator" aria-label="调整 AI 面板宽度" aria-orientation="vertical" tabIndex={0}
+      {current && panelOpen && panelTab === 'ai' && <div className="chat-panel-resize" role="separator" aria-label="调整 AI 面板宽度" aria-orientation="vertical" aria-valuemin={CHAT_MIN_WIDTH} aria-valuemax={maxChatWidth} aria-valuenow={visibleChatWidth} tabIndex={0}
         onKeyDown={event => {
           if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
           event.preventDefault();
-          setChatWidth(value => { const next = Math.max(340, Math.min(640, value + (event.key === 'ArrowLeft' ? 20 : -20))); localStorage.setItem('slite-chat-width', String(next)); return next; });
+          setChatWidth(() => { const next = Math.max(CHAT_MIN_WIDTH, Math.min(maxChatWidth, visibleChatWidth + (event.key === 'ArrowLeft' ? 20 : -20))); localStorage.setItem('slite-chat-width', String(next)); return next; });
         }}
         onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.dataset.dragging = 'true'; }}
         onPointerMove={event => {
           if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-          const next = Math.max(340, Math.min(640, window.innerWidth - event.clientX)); setChatWidth(next);
+          const next = Math.max(CHAT_MIN_WIDTH, Math.min(maxChatWidth, window.innerWidth - event.clientX)); setChatWidth(next);
         }}
         onPointerUp={event => { event.currentTarget.releasePointerCapture(event.pointerId); delete event.currentTarget.dataset.dragging; localStorage.setItem('slite-chat-width', String(chatWidth)); }} />}
 
@@ -711,10 +711,13 @@ export default function App() {
       <PanelToggle
         className="sidebar-toggle"
         side="left"
-        open={sidebarOpen}
-        label={sidebarOpen ? '收起文献导航' : '展开文献导航'}
+        open={sidebarVisible}
+        label={sidebarVisible ? '收起文献导航' : '展开文献导航'}
         controls="library-navigation"
-        onToggle={() => setSidebarOpen((value) => !value)}
+        onToggle={() => {
+          if (!sidebarVisible && current && panelOpen && panelTab === 'ai' && !readerLayout(viewportWidth, chatWidth, true, true).sidebarVisible) setPanelOpen(false);
+          setSidebarOpen(!sidebarVisible);
+        }}
       />
       {current && (
         <PanelToggle

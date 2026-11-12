@@ -39,9 +39,6 @@
 .desktop-menu-trigger.field-menu { display: flex; justify-content: space-between; width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); background: var(--surface-input); font-size: 13px; }
 .desktop-menu-trigger.field-menu > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desktop-menu-trigger.field-menu:hover { border-color: var(--border-strong); }
-.dialog.collection-dialog .btn.primary, .dialog.paper-dialog .btn.primary { background: var(--text); color: var(--surface-floating); box-shadow: none; }
-.dialog.collection-dialog .btn.primary:hover:not(:disabled), .dialog.paper-dialog .btn.primary:hover:not(:disabled) { opacity: .85; }
-.dialog.collection-dialog .btn.primary:disabled, .dialog.paper-dialog .btn.primary:disabled { background: var(--fill-hover); color: var(--text-disabled); opacity: 1; }
 .dialog.collection-dialog .btn, .dialog.paper-dialog .btn { min-height: 32px; }
 .dialog.paper-dialog .paper-details { margin-bottom: 0; }
 .desktop-menu { animation: menu-in 120ms var(--ease-out); }

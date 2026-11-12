@@ -188,6 +188,7 @@ export function SettingsDialog({ settings, providers, onSave, onClose, onLibrary
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [importBusy, setImportBusy] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [catalogue, setCatalogue] = useState<{ baseUrl: string; models: ProviderModel[] } | null>(null);
   const receiveModels = useCallback((baseUrl: string, models: ProviderModel[]) => setCatalogue({ baseUrl, models }), []);
   const activeId = draft.translate.activeProvider;
@@ -215,6 +216,8 @@ export function SettingsDialog({ settings, providers, onSave, onClose, onLibrary
     if (saving) return;
     if (thinkingError) { setError(thinkingError); return; }
     if (!Number.isInteger(draft.translate.concurrency) || draft.translate.concurrency < 1 || draft.translate.concurrency > 16) {
+      setSection('translation');
+      setAdvancedOpen(true);
       setError('翻译并发数必须是 1–16 的整数');
       return;
     }
@@ -273,11 +276,6 @@ export function SettingsDialog({ settings, providers, onSave, onClose, onLibrary
         </>}
         {section === 'translation' && <>
           <div className="settings-section-heading"><h3>翻译服务</h3></div>
-          <div className="settings-field"><label htmlFor="translation-concurrency">并发数</label>
-            <input id="translation-concurrency" type="number" min={1} max={16} step={1} value={Number.isFinite(draft.translate.concurrency) ? draft.translate.concurrency : ''}
-              onChange={e => setDraft(prev => ({ ...prev, translate: { ...prev.translate, concurrency: e.target.value === '' ? Number.NaN : Number(e.target.value) } }))} />
-            <p>1–16 个请求同时翻译，默认 4；阅读中的当前页优先。</p>
-          </div>
           <div className="settings-field"><span>服务提供方</span>
             <DesktopMenu ariaLabel="服务提供方" className="settings-menu" width={250} align="end" items={providers.map(provider => ({
               id: provider.id, label: provider.label, selected: provider.id === activeId,
@@ -313,21 +311,30 @@ export function SettingsDialog({ settings, providers, onSave, onClose, onLibrary
             onModels={receiveModels}
             onSelect={model => patchProvider({ model: model.id, api: model.api,
               reasoningEffort: modelReasoningLevels(model.reasoningLevels).includes(effort) ? effort : 'default' })} />}
-          {(activeId === 'magpie' || (['openai', 'deepseek'].includes(activeId) && (thinkingOptions.length > 1 || effort !== 'default'))) && <div className="settings-field"><span>思考程度</span>
-            <DesktopMenu ariaLabel="思考程度" className="settings-menu" width={220} align="end" items={thinkingOptions.map(level => ({
-              id: level, label: thinkingLabels[level], selected: (active.reasoningEffort ?? 'default') === level,
-              onSelect: () => patchProvider({ reasoningEffort: level as ProviderConfig['reasoningEffort'] }),
-            }))}><span>{thinkingLabels[active.reasoningEffort ?? 'default']}</span><IconChevronDown aria-hidden="true" /></DesktopMenu>
-            <p>{activeId === 'magpie'
-              ? currentCatalogue ? '可选档位来自当前模型的网关能力；模型默认不发送思考参数。' : '尚未取得当前网关的模型能力，仅可选择模型默认；已保存的档位保持不变。'
-              : '当前接口未提供模型思考能力，请重置为模型默认后保存。'}</p>
-          </div>}
           <div className="settings-field"><span>目标语言</span>
             <DesktopMenu ariaLabel="目标语言" className="settings-menu" width={200} align="end" items={LANGS.map(([code, label]) => ({
               id: code, label, selected: draft.targetLang === code,
               onSelect: () => setDraft(prev => ({ ...prev, targetLang: code })),
             }))}><span>{LANGS.find(([code]) => code === draft.targetLang)?.[1] ?? draft.targetLang}</span><IconChevronDown aria-hidden="true" /></DesktopMenu>
           </div>
+          <details className="settings-advanced" open={advancedOpen || Boolean(thinkingError)}
+            onToggle={event => setAdvancedOpen(event.currentTarget.open)}>
+            <summary>高级设置<span>并发与模型推理</span></summary>
+            <div className="settings-field"><label htmlFor="translation-concurrency">并发数</label>
+              <input id="translation-concurrency" type="number" min={1} max={16} step={1} value={Number.isFinite(draft.translate.concurrency) ? draft.translate.concurrency : ''}
+                onChange={e => setDraft(prev => ({ ...prev, translate: { ...prev.translate, concurrency: e.target.value === '' ? Number.NaN : Number(e.target.value) } }))} />
+              <p>1–16 个请求同时翻译，默认 4；阅读中的当前页优先。</p>
+            </div>
+            {(activeId === 'magpie' || (['openai', 'deepseek'].includes(activeId) && (thinkingOptions.length > 1 || effort !== 'default'))) && <div className="settings-field"><span>思考程度</span>
+              <DesktopMenu ariaLabel="思考程度" className="settings-menu" width={220} align="end" items={thinkingOptions.map(level => ({
+                id: level, label: thinkingLabels[level], selected: (active.reasoningEffort ?? 'default') === level,
+                onSelect: () => patchProvider({ reasoningEffort: level as ProviderConfig['reasoningEffort'] }),
+              }))}><span>{thinkingLabels[active.reasoningEffort ?? 'default']}</span><IconChevronDown aria-hidden="true" /></DesktopMenu>
+              <p>{activeId === 'magpie'
+                ? currentCatalogue ? '可选档位来自当前模型的网关能力；模型默认不发送思考参数。' : '尚未取得当前网关的模型能力，仅可选择模型默认；已保存的档位保持不变。'
+                : '当前接口未提供模型思考能力，请重置为模型默认后保存。'}</p>
+            </div>}
+          </details>
         </>}
         <LibraryImportPanel hidden={section !== 'library'} onBusyChange={setImportBusy} onImported={onLibraryImported} />
       </section>

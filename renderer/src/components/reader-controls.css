@@ -10,8 +10,6 @@
 .composer-colors { display: flex; align-items: center; gap: 6px; margin-right: auto; }
 .composer-colors .swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
 .composer-colors .swatch.on { border-color: var(--text); box-shadow: inset 0 0 0 2px var(--surface-floating); }
-.dialog.note-composer .btn.primary, .equation-block .eq-review-actions .btn.primary { background: var(--text); color: var(--surface-floating); box-shadow: none; }
-.dialog.note-composer .btn.primary:hover:not(:disabled), .equation-block .eq-review-actions .btn.primary:hover:not(:disabled) { opacity: .85; }
 .dialog.note-composer .btn { min-height: 32px; }
 .reader-controls .reader-more { flex: none; }
 .reader-controls .reading-size { flex: none; gap: 5px; padding: 0 7px; color: var(--text-2); font-variant-numeric: tabular-nums; }

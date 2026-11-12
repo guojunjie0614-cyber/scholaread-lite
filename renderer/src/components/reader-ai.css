@@ -8,9 +8,11 @@
 .reader-ai-menu button { display: block; width: 100%; text-align: left; padding: 8px 10px; font-size: 13px; border-radius: var(--radius-menu-item); }
 .reader-ai-menu button:is(:hover,:focus-visible) { background: var(--fill-hover); }
 .figure { position: relative; }
-.figure > .btn.region-ai-button, .faithful .page > .btn.region-ai-button { position: absolute; right: 8px; top: 8px; z-index: 3; height: 26px; padding: 0 10px; border-radius: var(--radius-control); border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: var(--shadow-sm); background: rgba(24, 24, 27, 0.86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #fafafa; font-size: 12px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity var(--dur-fast), background var(--dur-fast); }
-.figure > .btn.region-ai-button:hover:not(:disabled), .faithful .page > .btn.region-ai-button:hover:not(:disabled) { background: rgba(24, 24, 27, 0.96); color: #ffffff; }
-.figure:is(:hover,:focus-within) > .btn.region-ai-button, .faithful .page:is(:hover,:focus-within) > .btn.region-ai-button { opacity: 1; pointer-events: auto; }
+.region-actions { display: flex; justify-content: flex-end; align-items: center; min-height: 36px; padding: 4px 0; font-family: var(--sans); }
+.region-actions > .btn.region-ai-button { position: static; height: 28px; padding: 0 10px; border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-2); font-size: 12px; font-weight: 500; }
+.region-actions > .btn.region-ai-button:hover:not(:disabled) { background: var(--fill-hover); color: var(--text); border-color: var(--border); }
+.faithful .page-content { position: relative; }
+.faithful .page > .region-actions { padding-inline: 8px; background: var(--surface-paper); border-top: 1px solid var(--border-subtle); }
 .faithful .page .textLayer { position: absolute; inset: 0; overflow: clip; opacity: 1; line-height: 1; text-align: initial; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 1; }
 .faithful .textLayer :is(span,br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0 0; }
 .faithful .textLayer > :not(.markedContent), .faithful .textLayer .markedContent span:not(.markedContent) { z-index: 1; }

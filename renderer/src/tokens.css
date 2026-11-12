@@ -22,8 +22,8 @@
   --sidebar-text-muted: rgb(0 0 0 / .6);
   --sidebar-text-faint: rgb(0 0 0 / .45);
   --sidebar-hover: rgb(0 0 0 / .03);
-  --sidebar-selected: rgb(0 0 0 / .0375);
-  --font-sidebar: "Schibsted Grotesk Variable", "Noto Sans SC Variable", "Helvetica Neue", "PingFang SC", sans-serif;
+  --sidebar-selected: rgb(0 0 0 / .08);
+  --font-sidebar: var(--font-default);
   --accent: #0066cc;
   --accent-solid: #0066cc;
   --accent-raw: #0066cc;
@@ -51,8 +51,8 @@
   --surface-chrome: rgb(242 242 244 / .78);
   --material-filter: none;
   --selection: rgb(0 102 204 / .20);
-  --font-default: "Pimi Inter", "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", system-ui, sans-serif;
+  --font-default: "Pimi Inter", "Noto Sans SC Variable", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: var(--font-default);
   --font-sans: var(--font-default);
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --text-scale: 1;
@@ -133,7 +133,7 @@
   --sidebar-text-muted: rgb(255 255 255 / .56);
   --sidebar-text-faint: rgb(255 255 255 / .42);
   --sidebar-hover: rgb(255 255 255 / .05);
-  --sidebar-selected: rgb(255 255 255 / .075);
+  --sidebar-selected: rgb(255 255 255 / .11);
   --accent: #4a9cec;
   --accent-solid: #0066cc;
   --accent-raw: #4a9cec;

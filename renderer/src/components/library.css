@@ -34,9 +34,12 @@
   min-height: 32px;
   border-radius: var(--radius-control);
 }
-.collection-row:hover,
+.collection-row:hover {
+  background: var(--sidebar-hover);
+}
 .collection-row.selected {
   background: var(--sidebar-selected);
+  box-shadow: inset 2px 0 var(--accent-text);
 }
 .collection-row.drop-target {
   background: var(--accent-soft);
@@ -308,7 +311,7 @@
   position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
-  grid-template-rows: auto minmax(24px, 1fr) 18px;
+  grid-template-rows: 20px auto minmax(24px, 1fr) 18px;
   gap: 8px;
   padding: 16px;
   border: 1px solid var(--border-subtle);
@@ -316,13 +319,16 @@
   min-height: 164px;
 }
 .library-items.grid .library-paper-check {
-  position: absolute;
-  top: 19px;
-  left: 16px;
+  grid-row: 1;
+  grid-column: 1;
+  align-self: center;
+  justify-self: start;
+  margin: 0;
 }
 .library-items.grid .library-paper-copy {
   grid-column: 1 / -1;
-  padding: 0 24px;
+  grid-row: 2;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-self: stretch;
@@ -333,20 +339,23 @@
   font-size: 14px;
 }
 .library-items.grid .library-paper-groups {
+  grid-row: 3;
   grid-column: 1 / -1;
   align-self: start;
 }
 .library-items.grid .library-year {
+  grid-row: 4;
   align-self: end;
 }
 .library-items.grid .library-status {
+  grid-row: 4;
   align-self: end;
   text-align: right;
 }
 .library-items.grid .library-paper-actions {
-  position: absolute;
-  top: 11px;
-  right: 10px;
+  grid-row: 1;
+  grid-column: 2;
+  align-self: center;
 }
 .library-empty {
   min-height: 290px;

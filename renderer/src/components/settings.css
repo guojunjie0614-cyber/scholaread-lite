@@ -4,9 +4,6 @@
 .reader-settings .modal-body { display: flex; flex: 1; min-height: 0; overflow: hidden; padding: 0; }
 .reader-settings .modal-footer { padding: 16px 24px 22px; border: 0; }
 .reader-settings .modal-footer .btn { min-height: 32px; }
-.reader-settings .modal-footer .btn.primary { background: var(--text); color: var(--surface-floating); box-shadow: none; }
-.reader-settings .modal-footer .btn.primary:hover:not(:disabled) { opacity: .85; }
-.reader-settings .modal-footer .btn.primary:disabled { background: var(--fill-hover); color: var(--text-disabled); opacity: 1; }
 .reader-settings .settings-layout { display: grid; grid-template-columns: 156px minmax(0, 1fr); width: 100%; min-height: 0; }
 .reader-settings .settings-navigation { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-right: 1px solid var(--border-subtle); }
 .reader-settings .settings-nav-item { display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 0 10px; border-radius: var(--radius-control); color: var(--text-2); text-align: left; font-size: 13px; }
@@ -81,8 +78,6 @@
 /* One discovery/import action; details stay out of the default path. */
 .reader-settings .library-import-intro, .reader-settings .library-import-footnote, .reader-settings .library-import-status p, .reader-settings .library-import-result p { margin: 0; color: var(--text-2); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .reader-settings .library-import-actions { display: flex; align-items: center; gap: 8px; margin: 20px 0 12px; }
-.reader-settings .library-import-actions .btn.primary { background: var(--text); color: var(--surface-floating); box-shadow: none; }
-.reader-settings .library-import-actions .btn.primary:disabled { opacity: .45; }
 .reader-settings .library-import-status, .reader-settings .library-import-result { margin: 18px 0; font-size: 12px; }
 .reader-settings .library-import-status > div { display: flex; align-items: center; gap: 10px; }
 .reader-settings .library-import-status > div > span:first-child { flex: 1; }
@@ -97,3 +92,8 @@
 .reader-settings .library-import-locations span { display: block; font-size: 11px; }
 .reader-settings .library-import-result > .btn { padding-left: 0; margin-top: 6px; }
 .reader-settings .library-import-footnote { margin-top: 12px; color: var(--text-3); }
+
+.reader-settings .settings-advanced { margin-top: 20px; border-top: 1px solid var(--border-subtle); }
+.reader-settings .settings-advanced > summary { padding: 14px 0; color: var(--text); font-size: 13px; cursor: pointer; border-radius: var(--radius-label); }
+.reader-settings .settings-advanced > summary > span { margin-left: 10px; color: var(--text-3); font-size: 12px; }
+.reader-settings .settings-advanced > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

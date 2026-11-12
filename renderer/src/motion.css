@@ -46,7 +46,7 @@ button {
 .reader-settings .appearance-options.motion-selection::before { background: var(--surface-floating); box-shadow: 0 1px 3px var(--border-subtle); }
 .reader-settings .appearance-options.motion-selection[data-selection-measured='true'] input:checked + span { background: transparent; box-shadow: none; }
 .reader-settings .appearance-option > span { transition: color var(--dur-base) var(--ease-out); }
-.reading-notes .panel-tabs.motion-selection::before { background: var(--surface-2); box-shadow: none; }
+.reading-notes .panel-tabs.motion-selection::before { background: var(--fill-selected); box-shadow: none; }
 .reading-notes .panel-tabs.motion-selection[data-selection-measured='true'] > button.on { background: transparent; }
 
 /* Let the column finish closing before hiding it; input is disabled immediately by inert. */
