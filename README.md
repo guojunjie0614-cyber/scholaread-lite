@@ -7,7 +7,7 @@
 **把双栏 PDF 变成顺滑的单栏网页，直接调用本机 Codex / Claude Code 陪你精读顶刊论文。**
 
 [![Platform](https://img.shields.io/badge/Platform-macOS-111111?style=flat-square&logo=apple&logoColor=white)](#快速开始)
-[![Stack](https://img.shields.io/badge/Electron_35-React_19_+_TypeScript-2563eb?style=flat-square&logo=react&logoColor=white)](#架构与工程测试)
+[![Stack](https://img.shields.io/badge/Electron_41-React_19_+_TypeScript-2563eb?style=flat-square&logo=react&logoColor=white)](#架构与工程测试)
 [![Storage](https://img.shields.io/badge/Storage-Local--First_SQLite-059669?style=flat-square&logo=sqlite&logoColor=white)](#多级课题书库与-zotero-无损迁移)
 [![Agent](https://img.shields.io/badge/Agent-Codex_%7C_Claude_Code-7c3aed?style=flat-square)](#零配置接入本机-agent-的论文对话)
 [![License](https://img.shields.io/badge/License-MIT-d97706?style=flat-square)](./LICENSE)
@@ -73,9 +73,9 @@
 
 通用网页翻译插件经常把论文里的变量符号、上下标和缩写词改得面目全非。ScholarLite 采用专为理工科论文设计的 **「公式掩码 → 上下文并发流式翻译 → 术语与连字符清洗 → 本地 SQLite 缓存」** 管线：
 
-- **三种阅读对照视图**：工具栏一键切换「**原文**」、「**译文**」（纯中文沉浸精读）与「**双语**」（段落级中英对照）。
-- **公式与专业缩写精确锁死**：`SAR ADC`、`Monte Carlo`、`SNDR` 等短术语与行内/独立公式块严密保护，复合连字符（如 `closed-loop`、`weak-inversion`）智能留存，绝不吐出乱码占位符。
-- **全通道翻译引擎支持**：内置模型搜索下拉框与连通性一键测试，兼顾零成本体验与企业/实验室私有网关。
+- **原位中文沉浸切换**：重排模式下工具栏一键切换「**查看译文**」与「**查看原文**」，标题、正文、图注、表注与参考文献并发流式原位替换为中文，图表原稿裁片与行间公式保留原位；支持正文划词即时翻译。
+- **二维数学与学术连字符保真**：内联变量、科学上下标（`<sub>`/`<sup>`）与连续二维数学空间组全程编码保护并往返校验；行尾断词采用「同文档词频自洽 + 现代英文词典」判定，消除 `accu-rate` 等残留断词并保留 `time-series`、`closed-loop` 等真实复合词。
+- **多通道翻译与协议自动探测**：内置模型搜索下拉框与参数兼容降级恢复，兼顾企业/实验室私有网关与本地离线部署。
 
 <table>
   <tr>
@@ -85,18 +85,18 @@
     </td>
     <td width="50%" align="center">
       <img src="./assets/screenshots/settings-appearance.png" width="100%" alt="纸墨外观设置：浅色、暖纸与深色模式实时预览" />
-      <sub><b>纸墨阅读主题</b> · 提供浅色、护眼暖纸、深色与跟随系统四种视觉材质</sub>
+      <sub><b>纸墨阅读主题</b> · 提供浅色、深色与跟随系统三种外观模式，支持衬线/无衬线与字号行距实时预览</sub>
     </td>
   </tr>
 </table>
 
 | 翻译引擎 | 适用场景 | 鉴权与接入方式 |
 | :--- | :--- | :--- |
-| **Magpie 网关** | 实验室 / 团队统一大模型网关 | 支持读取本机 `~/.magpie/` CLI 登录态，或填入 API 地址与密钥 |
-| **OpenAI 兼容接口** | OneAPI / NewAPI / OpenRouter / 硅基流动 / 智谱 | 自定义 `Base URL`（自动兼容 `/v1` 与 `/v4` 根路径）+ API Key |
-| **DeepSeek** | 高性价比中文学术精翻 | 官方 API Key（默认 `deepseek-chat`） |
-| **Ollama 本地模型** | 100% 离线私密翻译 | 本机 `http://127.0.0.1:11434`，无需联网与 Key |
-| **DeepL / Google 翻译** | 开箱即用快速浏览 | Google 翻译零配置直连；DeepL 支持 Free / Pro API Key |
+| **Magpie 网关** | 实验室 / 团队统一大模型网关 | 连接网关地址（默认 `http://127.0.0.1:3425/v1`），免填上游密钥自动拉取模型与思考档位 |
+| **OpenAI 兼容接口** | OneAPI / NewAPI / OpenRouter / 硅基流动 / 智谱 | 自定义 `Base URL`（自动探测 `/v1`、兼容 `/v4` 等路径并剥离冗余后缀）+ API Key |
+| **DeepSeek** | 高性价比中文学术精翻 | 官方 API Key（默认 `https://api.deepseek.com/v1`），支持自动拉取模型列表 |
+| **Ollama 本地模型** | 100% 离线私密翻译 | 本机 `http://127.0.0.1:11434`，自动读取已安装模型，无需联网与 Key |
+| **DeepL / Google 翻译** | 传统机器翻译接口 | 支持 DeepL Free / Pro 接口地址与 Google Cloud Translation v2 API Key |
 
 ---
 
@@ -137,7 +137,7 @@
 
 ```bash
 # 1. 克隆仓库并安装依赖（会自动为当前 Electron 编译原生 SQLite 驱动）
-git clone https://github.com/Max-G01/scholaread-lite.git
+git clone https://github.com/guojunjie0614-cyber/scholaread-lite.git
 cd scholaread-lite
 npm install
 
@@ -157,11 +157,11 @@ npm run dev
 
 | 快捷键 | 功能说明 |
 | :--- | :--- |
-| `⌘ + F` | 在书库中聚焦全局搜索，或在阅读器内打开全文检索栏 |
-| `⌘ + K` | 快速唤出右侧「**对话**」面板并聚焦提问输入框 |
-| `←` / `→` | 在阅读器内快速翻至上一页 / 下一页 |
-| `⌘ + +` / `⌘ + -` | 在原页 PDF 模式下放大 / 缩小页面比例 |
-| `Esc` | 关闭当前弹窗、预览大图或取消全文检索高亮 |
+| `⌘ + K` / `⌘ + F` | 返回文献书库并聚焦全库搜索框 |
+| `⌘ + O` | 打开文件选择器导入本地 PDF 文献 |
+| `⌘ + ,` | 打开「设置」弹窗（外观、阅读排版、翻译服务、文献库导入） |
+| `⌘ + Enter` | 在笔记或公式编辑器中快速保存当前内容 |
+| `Esc` | 关闭当前弹窗、下拉菜单或取消笔记编辑 |
 
 ---
 
@@ -174,64 +174,59 @@ npm run dev
 
 ```text
 scholaread-lite/
-├── assets/                          # 应用图标与 README 实机高清截图
-├── scripts/
-│   ├── formula_ocr_worker.py        # 离线数学公式 LaTeX OCR 常驻 Worker
-│   ├── inspect-reflow.ts            # 重排管线命令行诊断工具
-│   └── setup-formula-ocr.sh         # 公式 OCR Python 虚拟环境一键安装脚本
-├── src/
-│   ├── main/                        # Electron 主进程
-│   │   ├── index.ts                 # 窗口生命周期、安全策略与系统集成
-│   │   ├── ipc.ts                   # 全量 IPC 路由与本地任务编排
-│   │   ├── db.ts                    # SQLite 存储层（文献、多级目录、批注、译文缓存）
-│   │   ├── reflow.ts                # 多策略重排调度、栅格插图裁切与结构恢复
-│   │   ├── translation.ts           # 公式掩码保护、并发分块流式翻译与术语清洗
-│   │   ├── agent-service.ts         # Codex / Claude Code CLI 自动探测与会话流管理
-│   │   ├── zotero.ts                # Zotero 本地数据库无损导入器
-│   │   └── metadata.ts              # Crossref / arXiv 元数据自动补全服务
-│   ├── preload/
-│   │   └── index.ts                 # contextBridge 安全隔离 API 注入
-│   ├── renderer/                    # React 19 + Vite 前端视图层
-│   │   ├── components/
-│   │   │   ├── LibraryView.tsx      # 文献书库（列表/卡片视图、多级目录树）
-│   │   │   ├── ReaderView.tsx       # 阅读器核心（重排/原页切换、全文检索、图文框选）
-│   │   │   ├── AgentPanel.tsx       # 右侧 AI 对话面板与 OpenUI 交互卡片渲染
-│   │   │   └── SettingsModal.tsx    # 外观、阅读排版、翻译引擎与导入设置弹窗
-│   │   └── styles.css               # 原生 macOS 纸墨质感样式系统
-│   └── shared/                      # 主进程与渲染进程共享的核心算法
-│       ├── text-reflow.ts           # PDF 文本流聚合、章节推断与散碎数学行合并
-│       ├── text-reflow-table.ts     # 跨栏三线表检测与自适应布局重建
-│       └── latex-normalizer.ts      # 数学符号归一化与公式渲染保护
-└── tests/                           # 38 项自动化回归与真实顶刊 PDF 语料验收套件
+├── assets/                          # 应用图标与 README 实机截图
+├── electron/                        # Electron 主进程与预加载层
+│   ├── main.ts                      # 窗口生命周期、协议注册与会话安全策略
+│   ├── preload.ts                   # contextBridge 安全隔离 IPC API 注入
+│   ├── ipc.ts                       # 文献、分块、批注、配置与元数据 IPC 路由
+│   ├── db.ts                        # Node SQLite 存储层（文献、多级分类、批注、译文缓存）
+│   ├── translate.ts                 # 优先级并发流式翻译调度、缓存自愈与错误隔离
+│   ├── magpie.ts                    # 模型目录拉取、端点规范化与 /v1 契约探测
+│   ├── http.ts                      # Electron net.fetch 与 macOS 系统代理适配
+│   ├── library-import.ts            # Zotero 数据库（含 WAL）只读导入与目录扫描
+│   ├── metadata.ts                  # Crossref / arXiv 元数据补全服务
+│   └── chat/                        # Codex App Server / Claude Code CLI 对话适配与存储
+├── renderer/src/                    # React 19 + Vite 前端视图与重排引擎
+│   ├── App.tsx                      # 顶层状态、书库/阅读切换与全局快捷键
+│   ├── components/                  # 书库（LibraryHome）、阅读器（Reader）、设置、笔记与对话面板
+│   ├── chat/visuals/                # OpenUI 1.0 交互式图表与示意组件库
+│   └── reflow/                      # 学术 PDF 重排核心（版面分栏、连通域、三线表、行内数学、OCR）
+├── shared/                          # 主进程与渲染进程共享契约与纯算法
+│   ├── types.ts                     # 全局数据结构与 IPC 类型定义
+│   ├── english-lexicon.ts           # 文档词频自洽 + 紧凑现代英文词典断词消解
+│   ├── translation-scripts.ts       # 二维数学占位符保护、上下标校验与复读前缀对齐剥离
+│   └── venue.ts                     # 期刊/会议标准简称归一化
+├── scripts/                         # 构建、打包、原生 Vision OCR、公式 OCR 与测试运行脚本
+└── tests/                           # 自动化单元/集成回归与真实论文语料验收套件
 ```
 
 **本地数据存储路径（macOS）**：
-- **SQLite 数据库**：`~/Library/Application Support/ScholarLite/scholarlite.db`
-- **托管 PDF 文献库**：`~/Library/Application Support/ScholarLite/papers/`
-- **重排插图与翻译缓存**：`~/Library/Application Support/ScholarLite/cache/`
+- **SQLite 数据库**：`~/Library/Application Support/ScholarLite/library.db`（含文献、分类树、重排块、高亮批注、译文缓存与对话记录）
+- **托管 PDF 文献库**：`~/Library/Application Support/ScholarLite/library/`
+- **用户配置文件**：`~/Library/Application Support/ScholarLite/config.json`
 
 </details>
 
 <details>
-<summary><b>🧪 展开查看自动化回归与真实语料验收命令（38 项测试套件）</b></summary>
+<summary><b>🧪 展开查看类型检查、自动化回归与真实语料验收命令</b></summary>
 
 <br />
 
-ScholarLite 配备覆盖版面重排、跨栏表格恢复、公式保护翻译与真实 PDF 语料的完整测试套件：
+ScholarLite 配备覆盖版面重排、三线表与公式结构恢复、数学保护流式翻译、Zotero 迁移与真实论文语料的测试套件：
 
 ```bash
-# 运行核心单元测试与模块回归测试（12 大测试套件 / 38 项断言）
+# 运行 TypeScript 全量严格类型检查
+npm run typecheck
+
+# 运行全部自包含单元与集成回归测试套件
 npm test
 
-# 在真实顶刊 PDF 语料上运行重排质量门禁与跨页审计
+# 在真实论文语料集（dev / holdout / regression）上运行重排验收门禁
 npm run test:corpus
-npm run test:audit
-npm run test:fidelity
 
-# 针对单篇 PDF 输出重排分块与版面诊断报告
+# 针对单篇本地 PDF 输出重排分块诊断结果
 npm run inspect:reflow -- "/path/to/paper.pdf"
 ```
-
 </details>
 
 ---

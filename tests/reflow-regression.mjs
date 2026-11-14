@@ -693,6 +693,61 @@ try {
     );
     assert.equal(blocks[1].textRuns.map(r => r.text).join(''), blocks[1].text);
   });
+  await check('same-column stacked tables separated by prose keep column gutter and absorb outlined footnotes', async () => {
+    const items = [
+      // Left column table III
+      item('TABLE III', 148, 224, 42, 8),
+      item('CLOCK CYCLES IN RECALL TASK.', 96, 235, 146, 8),
+      item('N   software ESN   hardware intESN', 55, 266, 238, 8),
+      item('100   3.0e8   1.4e8', 55, 279, 235, 8),
+      item('300   2.1e9   4.5e8', 55, 294, 235, 8),
+      // Left column section heading + prose below Table III
+      item('C. Efficiency evaluation results', 49, 346, 165, 10, 'italic'),
+      // Right column top table IV
+      item('TABLE IV', 415, 290, 42, 8),
+      item('SPEED-UP COMPARISON WITH PIPELINING.', 348, 300, 178, 8),
+      item('Pipelining   ESN   intESN', 335, 316, 200, 8),
+      item('Speed-up   24.97   51.91', 335, 338, 200, 8),
+      // Right column bottom table V
+      item('TABLE V', 418, 668, 38, 8),
+      item('XPE OVERALL POWER CONSUMPTION (WATTS)', 346, 679, 184, 8),
+      item('N   software   hardware', 335, 698, 200, 8),
+      item('300   1.53   1.60', 335, 725, 200, 8),
+    ];
+    for (let i = 0; i < 14; i++) {
+      items.push(item(`Left column prose evaluation sentence line ${i} discussing hardware LUT utilization.`, 49, 362 + i * 14, 248, 10));
+      items.push(item(`Right column prose evaluation sentence line ${i} discussing pipelining throughput.`, 312, 390 + i * 14, 248, 10));
+    }
+    // Add intra-document mid-line authorial compound 'echo-state' and hyphenated test sentences
+    items.push(item('Our echo-state reservoir avoids accu-', 49, 570, 248, 10));
+    items.push(item('rate drift and empha-', 49, 584, 248, 10));
+    items.push(item('sizes miti-', 49, 598, 248, 10));
+    items.push(item('gating time-', 49, 612, 248, 10));
+    items.push(item('series noise in echo-', 49, 626, 248, 10));
+    items.push(item('state networks.', 49, 640, 120, 10));
+
+    const rules = [
+      // Left Table III rules + 5 lines of vector-outlined non-text footnotes extending 36pt below bottom rule (y=302..332 < heading at 340)
+      [49, 256, 302, 256], [49, 270, 302, 270], [49, 302, 302, 302],
+      [52, 306, 290, 311], [52, 313, 285, 318], [52, 320, 288, 325], [52, 327, 260, 332],
+      // Right Table IV rules (aligned x=326..548)
+      [326, 306, 548, 306], [326, 322, 548, 322], [326, 350, 548, 350],
+      // Right Table V rules (same x=326..548 lower in right column)
+      [326, 688, 548, 688], [326, 704, 548, 704], [326, 738, 548, 738],
+    ];
+    const blocks = await analyzePage(page(items, rules), 10, 'stacked-col-tables', { keepFigures: true });
+    const tables = blocks.filter(b => b.kind === 'table');
+    assert.equal(tables.length, 3, 'all three single-column tables must be extracted independently');
+    const [t3, t4, t5] = tables;
+    assert(t3.crop[2] < 310, `left Table III must not cross into right column: ${JSON.stringify(t3.crop)}`);
+    assert(t3.crop[3] >= 332 && t3.crop[3] < 338, `outlined footnotes below bottom rule must be conserved up to heading: ${JSON.stringify(t3.crop)}`);
+    assert(t4.crop[0] > 310 && t4.crop[3] < 365, `right Table IV must stay in right column: ${JSON.stringify(t4.crop)}`);
+    assert(t5.crop[0] > 310 && t5.crop[1] > 680, `right Table V must stay in right column: ${JSON.stringify(t5.crop)}`);
+    assert(blocks.some(b => b.kind === 'caption' && b.text === 'TABLE V XPE OVERALL POWER CONSUMPTION (WATTS)'));
+    const dehyphPara = blocks.find(b => b.kind === 'p' && b.text.includes('reservoir avoids'));
+    assert(dehyphPara, 'hyphenated test paragraph must be present');
+    assert.match(dehyphPara.text, /accurate drift and emphasizes mitigating time-series noise in echo-state networks\./);
+  });
   console.log(`${count} reflow regression checks passed.`);
 } finally {
   await fs.rm(tmp, { recursive: true, force: true });

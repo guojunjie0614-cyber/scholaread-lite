@@ -15,7 +15,11 @@
     "start": "npm run build && node scripts/launch.mjs",
     "app:mac": "npm run build && node scripts/create-mac-app.mjs",
     "typecheck": "tsc --noEmit",
-    "generate:visual-prompt": "node scripts/generate-visual-prompt.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "test:corpus": "node tests/corpus-acceptance.mjs",
+    "inspect:reflow": "node tests/reflow-sample.mjs",
+    "generate:visual-prompt": "node scripts/generate-visual-prompt.mjs",
+    "generate:lexicon": "node scripts/generate-lexicon.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

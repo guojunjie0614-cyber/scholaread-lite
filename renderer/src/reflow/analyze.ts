@@ -14,7 +14,8 @@ import { classifyReadingRoles } from './reading-roles';
 import { classifyReferences, endsReferenceSection, isBibliographicLine, isBibliographicEntryStart } from './references';
 import { isReferenceHeading } from '@shared/reading-content';
 import { composeDottedEquals, composeEquationNumbers, hasUnmappedGlyphs, recoverEncodedGlyphs, splitInterleavedMathRuns } from './glyph-recovery';
-export const REFLOW_ENGINE_VERSION = 31;
+import { createDocumentLexiconAccumulator, shouldKeepEndOfLineHyphen, type DocumentLexicon } from '@shared/english-lexicon';
+export const REFLOW_ENGINE_VERSION = 32;
 
 /** Running headers and floating figures must not interrupt an unfinished sentence. */
 export function orderFloatingContent<T extends Pick<Block, 'kind' | 'text' | 'readingRole'>>(blocks: T[]): T[] {
@@ -80,6 +81,9 @@ export interface AnalyzeOptions {
   keepFigures: boolean;
   /** Document context is required before suppressing author portraits. */
   documentPageCount?: number;
+  documentLexicon?: DocumentLexicon;
+  documentGutterRatio?: number | null;
+  onPageGutter?: (gutterRatio: number | null) => void;
   ocrPage?: (page: PDFPageProxy) => Promise<RawItem[]>;
   onProgress?: (done: number, total: number) => void;
 }
@@ -294,50 +298,11 @@ function lineKind(line: Line, body: number, page: number): BlockKind {
   return 'p';
 }
 
-const COMPOUND_PREFIX = /^(?:non|self|multi|cross|co|re|pre|post|anti|semi|quasi|sub|super|ultra|inter|intra|macro|micro|mini|mono|bi|tri|quad|poly|auto|meta|para|proto|pseudo|neo|pan|vice|ex|all|full|half|low|high|mid|wide|narrow|long|short|fast|slow|hard|soft|real|single|double|triple|dual|two|three|four|five|six|seven|eight|nine|ten|first|second|third|one|zero|well|ill|best|least|most|less|more|near|far|off|on|in|out|up|down|over|under|back|front|side|top|bottom|left|right|hand|eye|head|base|state|time|space|rate|bit|byte|word|line|row|col|column|page|block|cell|node|edge|path|tree|graph|net|network|mesh|grid|ring|bus|port|link|channel|band|wave|beam|pulse|clock|phase|mode|step|stage|level|tier|layer|plane|domain|field|zone|region|area|point|spot|site|end|start|center|core|shell|frame|box|case|set|group|class|type|kind|form|style|model|scheme|method|rule|law|norm|bound|limit|range|scale|size|width|length|height|depth|mass|weight|load|force|power|energy|heat|light|sound|noise|signal|data|code|key|tag|flag|mark|sign|token|item|unit|part|piece|bank|array|list|table|map|pair|tuple|vector|matrix|tensor|scalar|rank|order|degree|grade|score|ratio|factor|index|value|cost|price|fee|tax|gain|loss|risk|error|fault|bug|gap|drop|rise|shift|jump|turn|spin|roll|pitch|yaw|flow|stream|current|voltage|charge|flux|gate|source|drain|bulk|oxide|metal|wire|track|trace|pad|pin|via|hole|slot|fin|sheet|film|stack|die|chip|tile|slice|mat|subarray|bitline|wordline|crossbar|memristor|resistor|capacitor|inductor|transistor|diode|laser|sensor|detector|actuator|motor|pump|valve|filter|mixer|amp|amplifier|oscillator|pll|adc|dac|mux|demux|alu|mac|fpu|cpu|gpu|npu|tpu|fpga|asic|soc|noc|pim|cim|cam|tcams|sram|dram|rram|reram|pcm|mram|feffet|fefet|flash|rom|ram|fifo|lifo|lut|bram|dsp|pe|se|cu|sm|warp|thread|task|job|work|workload|benchmark|dataset|test|train|val|eval|run|pass|cycle|epoch|batch|sample|char|pixel|voxel|patch|clip|view|shot|pose|object|person|face|body|brain|mind|heart|lung|cell|gene|protein|drug|dose|patient|user|client|server|host|cloud|edge|fog|web|app|site|page|doc|file|folder|dir|url|uri|api|sdk|cli|gui|ui|ux|os|vm|db|sql|xml|json|yaml|html|css|js|ts|py|cpp|rust|go|java|fine|coarse|large|small|big|tiny|huge|vast|deep|shallow|thick|thin|flat|steep|sharp|blunt|smooth|rough|clean|dirty|pure|mixed|raw|cooked|dry|wet|hot|cold|warm|cool|bright|dark|dim|clear|blurry|loud|quiet|strong|weak|heavy|dense|sparse|tight|loose|stiff|rigid|flexible|stable|unstable|static|dynamic|fixed|free|open|closed|public|private|local|global|inner|outer|upper|lower|early|late|old|new|young|fresh|stale|good|bad|poor|rich|lean|fat|true|false|safe|unsafe|sure|unsure|easy|simple|complex|plain|fancy|common|rare|odd|even|main|aux|extra|spare|busy|idle|live|dead|active|passive|online|offline|inline|outline|onchip|offchip|inmemory|candidate|candidates|record|records|target|reference|source|channel|channels|feature|features|attention|memory|precision|power|energy|cost|delay|latency|area|speed|noise|error|fault|failure|attack|defense|privacy|security|quality|capacity|density|efficiency|throughput|bandwidth|frequency|phase|amplitude|voltage|current|charge|domain|scale|level|stage|step|mode|type|class|group|set|band|line|point|rate|time|space|order|degree|rank|norm|bound|limit|range|size|width|length|height|depth|weight|load|force|mass|heat|light|sound|wave|beam|pulse|clock|bus|port|link|net|mesh|grid|ring|tree|graph|path|edge|node|cell|block|unit|core|shell|layer|tier|plane|field|zone|region|area|site|spot|center|end|start|top|bottom|left|right|front|back|side|hand|eye|head|base|state|form|style|kind|model|scheme|method|rule|law|system|network|circuit|device|processor|controller|converter|inverter|driver|buffer|storage|cache|register|counter|timer|adder|multiplier|divider|decoder|encoder|multiplexer|comparator|correlator|estimator|predictor|classifier|regressor|tracker|segmenter|generator|discriminator|accelerator|architecture|algorithm|design|co-design|codesign)$/i;
-
-const COMPOUND_SUFFIX = /^(?:based|driven|aware|free|like|wise|wide|side|time|space|scale|level|stage|step|rate|mode|type|style|form|kind|class|set|group|band|width|length|height|depth|size|range|bound|limit|point|line|plane|field|zone|area|region|domain|layer|tier|shell|core|unit|part|block|cell|node|edge|path|net|mesh|grid|ring|bus|port|link|channel|wave|beam|pulse|clock|phase|flow|stream|current|voltage|power|energy|force|load|mass|weight|cost|gain|loss|risk|error|fault|gap|drop|rise|shift|jump|turn|spin|roll|pitch|yaw|ratio|factor|index|value|score|grade|degree|order|rank|matrix|vector|tensor|array|list|table|map|pair|tree|graph|model|scheme|method|rule|law|norm|system|network|circuit|device|sensor|detector|filter|amplifier|processor|controller|converter|inverter|driver|buffer|memory|storage|cache|register|counter|timer|adder|multiplier|divider|decoder|encoder|multiplexer|comparator|correlator|estimator|predictor|classifier|regressor|tracker|segmenter|generator|discriminator|accelerator|academia|industry|specific|independent|dependent|oriented|centric|friendly|ready|safe|proof|resistant|tolerant|sensitive|insensitive|variant|invariant|linear|nonlinear|stationary|nonstationary|symmetric|asymmetric|synchronous|asynchronous|parallel|serial|digital|analog|mixed|hybrid|local|global|static|dynamic|active|passive|online|offline|inline|chip|package|board|die|wafer|gate|source|drain|bulk|oxide|metal|wire|track|pad|pin|via|fin|sheet|film|stack|tile|slice|bank|mat|row|column|crossbar|bit|byte|word|page|frame|packet|flit|phit|cycle|pass|run|test|train|eval|workload|benchmark|dataset|record|records|candidate|candidates|architecture|algorithm|design|co-design|codesign|refinement|grained|dimensional|precision|accuracy|resolution|speed|throughput|latency|efficiency|density|capacity|bandwidth|overhead|margin|budget|constraint|constrained|coupled|decoupled|assisted|guided|induced|triggered|controlled|modulated|regulated|stabilized|calibrated|compensated|optimized|accelerated|enabled|disabled|configured|connected|disconnected|isolated|integrated|embedded|distributed|centralized|federated|hierarchical|modular|scalable|reconfigurable|programmable|adaptive|tunable|adjustable|selectable|switchable|reversible|irreversible|compressed|compression|pruned|pruning|quantized|quantization|encoded|encoding|decoded|decoding|modulated|modulation| multiplexed|multiplexing|correlated|correlation|normalized|normalization|regularized|regularization|weighted|weighting|scaled|scaling|shifted|shifting|aligned|alignment|matched|matching|shared|sharing|pooled|pooling|padded|padding|strided|dilated|grouped|depthwise|pointwise|elementwise|channelwise|layerwise|bitwise|rowwise|columnwise|blockwise|patchwise|framewise|tokenwise|headwise|stepwise|piecewise|pairwise|clockwise|counterclockwise|computer|computing|machine|learning|training|testing|inference|classification|regression|detection|segmentation|recognition|generation|synthesis|analysis|processing|filtering|sampling|sensing|imaging|tracking|navigation|positioning|acquisition|communication|transmission|reception|modulation|demodulation|coding|decoding|encryption|decryption|compression|decompression|storage|retrieval|search|matching|sorting|routing|scheduling|allocation|management|control|optimization|calibration|compensation|correction|cancellation|suppression|mitigation|reduction|enhancement|improvement|acceleration|implementation|realization|fabrication|integration|verification|validation|evaluation|characterization|modeling|simulation|emulation|estimation|prediction|reconstruction|restoration|interpolation|extrapolation|approximation|transform|transformation|decomposition|factorization|projection|embedding|mapping|alignment|fusion|aggregation|pooling|attention|convolution|correlation|activation|normalization|regularization|quantization|pruning|distillation|adaptation|generalization|specialization|customization|personalization|localization|globalization|parallelization|vectorization|pipelining|multiplexing|interleaving|buffering|caching|prefetching|forwarding|bypassing|gating|clocking|powering|biasing|switching|driving|loading|unloading|charging|discharging|heating|cooling|packaging|bonding|stacking|routing|placing|floorplanning|sizing|timing|testing|debugging|profiling|monitoring|logging|tracing|auditing|checking|verifying|validating|evaluating|benchmarking|comparing|ranking|scoring|selecting|filtering|clustering|grouping|partitioning|splitting|merging|joining|combining|mixing|blending|fusing|linking|binding|coupling|decoupling|isolating|shielding|grounding|terminating|matching|tuning|trimming|calibrating|compensating|correcting|canceling|suppressing|mitigating|reducing|enhancing|improving|accelerating|implementing|realizing|fabricating|integrating|world|valued|term|terms|range|rate|speed|power|voltage|current|frequency|noise|cost|delay|loss|gain|efficiency|accuracy|precision|resolution|density|capacity|bandwidth|throughput|latency|area|size|scale|level|stage|step|mode|type|class|group|set|band|line|point|time|space|order|degree|rank|norm|bound|limit|width|length|height|depth|weight|load|force|mass|heat|light|sound|wave|beam|pulse|clock|bus|port|link|net|mesh|grid|ring|tree|graph|path|edge|node|cell|block|unit|core|shell|layer|tier|plane|field|zone|region|site|spot|center|end|start|top|bottom|left|right|front|back|side|hand|eye|head|base|state|form|style|kind|model|scheme|method|rule|law|system|network|circuit|device|sensor|detector|filter|amplifier|processor|controller|converter|inverter|driver|buffer|memory|storage|cache|register|counter|timer|adder|multiplier|divider|decoder|encoder|multiplexer|comparator|correlator|estimator|predictor|classifier|regressor|tracker|segmenter|generator|discriminator|accelerator)$/i;
-
-const BOUND_SUFFIX = /^(?:s|es|ed|d|er|ers|est|ing|ings|ly|y|ies|ied|ier|iest|ity|ities|ty|ties|tion|tions|sion|sions|ation|ations|ition|itions|ment|ments|ness|nesses|ance|ances|ence|ences|ancy|ency|ant|ants|ent|ents|able|ables|ible|ibles|ability|abilities|ibility|ibilities|al|als|ial|ials|ual|uals|ic|ics|ical|ically|ive|ives|ively|ative|atives|itive|ous|ously|eous|ious|uous|ize|izes|ized|izing|ization|izations|ise|ises|ised|ising|isation|isations|ify|ifies|ified|ifying|ification|ifications|en|ens|ened|ening|ward|wards|less|lessness|ful|fully|fulness|ship|ships|hood|hoods|dom|doms|ist|ists|ism|isms|or|ors|ar|ars|ur|urs|ure|ures|ture|tures|sure|sures|age|ages|aged|aging|ade|ades|an|ans|ian|ians|ean|ery|eries|ary|aries|ory|ories|ry|ries|cy|cies|sy|sies|logy|logies|logical|logically|graphy|graphies|graphic|graphics|graphical|metry|metric|metrics|metrical|nomy|nomic|nomics|scope|scopes|scopic|scopy|phone|phones|phonic|phony|gram|grams|gon|gons|hedron|hedrons|hedra|sphere|spheres|spherical|tron|trons|tronic|tronics|ware|wares|fold|folds|ern|erns|let|lets|ette|ettes|ling|lings|ton|tons|teen|teens|tieth|th|ths|tually)$/i;
-
-const CLOSED_SINGLE_WORDS = /^(?:hardware|software|firmware|middleware|dataset|datasets|database|databases|network|networks|networking|framework|frameworks|workload|workloads|workflow|workflows|workspace|workstation|benchmark|benchmarks|bandwidth|wavelength|wavelengths|waveform|waveforms|waveguide|waveguides|overhead|overheads|overlap|overlapping|overcome|overall|overflow|overview|overfit|overfitting|underfit|underfitting|throughput|pipeline|pipelines|pipelined|pipelining|feedback|feedforward|timestamp|timestamps|timestep|timesteps|timescale|timeout|gateway|gateways|pathway|pathways|highway|railway|subway|background|backgrounds|foreground|underground|upstream|downstream|mainstream|input|inputs|output|outputs|offset|offsets|online|offline|inline|outline|outlines|outside|inside|beside|besides|update|updates|updated|updating|upgrade|upload|download|downsample|downsampled|downsampling|upsample|upsampled|upsampling|understand|understanding|underwater|undertake|underlying|underline|outperform|outperforms|outperformed|outperforming|outstanding|backpropagation|hyperparameter|hyperparameters|suboptimal|subspace|subthreshold|substrate|substrates|subsequent|subsequently|substantial|substantially|substitute|substitution|subject|subjects|submit|submitted|subtract|subtraction|interface|interfaces|interfacing|internal|internally|interval|intervals|interpret|interpretation|interrupt|interrupts|intersection|interconnect|interconnects|interconnection|interaction|interactions|interactive|intermediate|interleave|interleaved|interleaving|interpolate|interpolation|interfere|interference|international|internet|semiconductor|semiconductors|superconductor|superconducting|automatic|automatically|automation|autonomous|multiply|multiplier|multipliers|multiplication|multiple|multiplex|multiplexer|multiplexers|multiplexing|multitude|microphone|microscope|microscopy|microprocessor|microcontroller|microarchitecture|microstructure|superstructure|substructure|infrastructure|uniform|uniformly|perform|performed|performing|performance|performances|inform|information|informative|transform|transforms|transformed|transformation|transformer|transformers|conform|deform|reform|platform|platforms|format|formats|formation|formula|formulas|formulate|formulation|formal|formally|former|formerly|algorithm|algorithms|algorithmic|logarithm|logarithmic|arithmetic|character|characters|characteristic|characteristics|characterize|characterization|temperature|temperatures|literature|architecture|architectures|architectural|manufacture|manufacturing|nomenclature|expenditure|legislature|candidature|miniature|signature|curvature|armature|ligature|aperture|overture|conjecture|lecture|picture|structure|structures|structural|culture|nature|natural|naturally|feature|features|creature|future|mature|capture|captured|capturing|rapture|rupture|sculpture|measure|measures|measured|measuring|measurement|measurements|pleasure|treasure|closure|exposure|composure|enclosure|disclosure|erasure|leisure|seizure|fissure|pressure|assure|ensure|insure|reassure|procure|secure|obscure|endure|tenure|venture|adventure|posture|gesture|texture|mixture|fixture|juncture|puncture|stricture|configure|configuration|configurations|reconfigure|figure|figures|aware|unaware|beware|square|compare|prepare|declare|welfare|warfare|share|spare|stare|glare|flare|scare|snare|bare|care|dare|fare|rare|realize|realized|realizes|realizing|realization|realistic|reality|really|eventually|eventual|actually|actual|general|generally|generalized|generalization|original|originally|initial|initially|initialization|initialize|initialized|final|finally|finalize|normal|normally|normalize|normalized|normalization|signal|signals|signaling|channel|channels|parallel|parallelism|model|models|modeling|modeled|level|levels|label|labels|labeled|labeling|panel|panels|pixel|pixels|voxel|voxels|kernel|kernels|vessel|vessels|novel|novelty|total|totally|equal|equally|equality|local|locally|localize|localized|localization|locality|global|globally|optimal|optimally|optimality|optimize|optimized|optimizing|optimization|minimal|minimize|minimized|minimization|maximal|maximize|maximized|maximization|digital|digitally|digitize|spatial|spatially|temporal|temporally|spectral|central|centrally|neural|functional|conventional|conventionally|convolutional|dimensional|directional|computational|experimental|experimentally|fundamental|fundamentally|incremental|environmental|additional|additionally|traditional|traditionally|conditional|proportional|orthogonal|diagonal|nominal|terminal|terminals|marginal|external|eternal|journal|journals|manual|manually|annual|annually|gradual|gradually|mutual|mutually|virtual|virtually|visual|visually|individual|individually|residual|residuals|continual|continually|conceptual|context|contextual|textual|usual|usually|duality|wireless|wirelessly|therefore|however|moreover|furthermore|nevertheless|nonetheless|meanwhile|otherwise|likewise|clockwise|counterclockwise|throughout|without|within|whereas|whereby|wherein|whereof|whatever|whenever|wherever|whoever|whichever|himself|herself|itself|themselves|ourselves|yourself|myself|anything|everything|nothing|something|anyone|everyone|someone|anybody|everybody|nobody|somebody|anywhere|everywhere|nowhere|somewhere|anyway|anytime|sometime|sometimes|everyday|highlight|highlights|highlighted|highlighting|shortage|shorten|shortly|shortest|shorter|longer|longest|longitude|opening|opened|openly|freedom|freely|freezing|purely|simplest|simply|commonly|actively|passively|singleton)$/i;
-
-function shouldKeepHyphen(left: string, right: string): boolean {
-  const headMatch = left.match(/([A-Za-z0-9-]+)-$/);
-  const tailMatch = right.match(/^([A-Za-z0-9-]+)/);
-  if (!headMatch || !tailMatch) return true;
-  const rawHead = headMatch[1], rawTail = tailMatch[1];
-  const head = rawHead.split('-').pop()!;
-  const tail = rawTail.split('-')[0];
-  if (/\d/.test(rawHead) || /\d/.test(rawTail)) return true;
-  if (/^[A-Z]/.test(tail) || (head.length > 1 && /^[A-Z]+$/.test(head))) return true;
-  if (/^[A-Za-z]$/.test(rawHead)) return true;
-  if (rawHead.includes('-')) {
-    return /^(?:of|to|in|on|at|by|for|with|from|and|or|the|a|an|per|vs)$/i.test(head) ||
-      shouldKeepHyphen(`${head}-`, tail);
-  }
-  const h = head.toLowerCase(), t = tail.toLowerCase();
-  const joined = h + t;
-  if (t.length < 3 || BOUND_SUFFIX.test(t) || CLOSED_SINGLE_WORDS.test(joined)) return false;
-  if (/^(?:self|multi|non|cross|quasi|semi|anti|post|ultra|intra|macro|micro|mini|mono|poly|auto|meta|proto|pseudo|neo|pan|vice|all|full|half|low|high|mid|wide|narrow|long|short|fast|slow|hard|soft|real|single|double|triple|dual|two|three|four|five|first|second|third|one|zero|well|ill|near|far|off|on|out|up|down|over|under|back|front|side|top|bottom|left|right|fine|coarse|large|small|free|open|closed|weak|strong|early|late|deep|shallow|tight|loose|heavy|light|dense|sparse|thick|thin|fixed|mixed|pure|clean|raw|hot|cold|warm|cool|bright|dark|clear|flat|steep|sharp|smooth|rough|stiff|rigid|stable|static|active|passive|local|global|inner|outer|upper|lower|old|new|fresh|good|bad|poor|rich|true|false|safe|easy|simple|plain|common|rare|odd|even|main)$/.test(h)) return true;
-  if (/^(?:co|re|pre|de|un|in|im|dis|mis|sub|inter|trans|super|counter|out|over|under)$/.test(h)) {
-    if (h === 'co' && /^(?:design|designed|designs|designing|author|authors|authored|locate|located|location|operate|operation|operative|optimize|optimization|processor|processors|processing|simulation|simulations|exist|existence|existing|adaptation|adaptive|evolution|evolving|ordinate|ordinates|ordination|planar|prime|worker|workers|working|founder|founders|pilot|channel|channels|variance|variant|variants|occurrence|occurring|opt|opted|opting|pay|payment|produce|production|star|stars|teacher|teaching|terminous|tracker|tracking|train|training|verification|verify)$/.test(t)) return true;
-    if (h === 're' && /^(?:enter|entries|entry|establish|established|establishing|evaluate|evaluated|evaluation|examine|examined|examination|elect|elected|election|enact|enacted|energize|engineer|engineered|engineering|ice|ink|issue|issued|orient|oriented|orientation|open|opened|opening|order|ordered|ordering|organize|organized|organization|read|reading|run|running|use|used|using|write|writing)$/.test(t)) return true;
-    if (h === 'pre' && /^(?:existing|war|workout|school|process|processed|processing|processor|processors|amplify|amplifier|amplifiers|charge|charged|charging|chargers|compile|compiled|compiler|compute|computed|computing|condition|conditioned|conditioning|conditioner|configure|configured|configuration|decode|decoded|decoder|decoding|define|defined|emphasis|emphatic|empt|emption|emptive|fabricate|fabricated|fetch|fetched|fetching|filter|filtered|filtering|heat|heated|heating|lay|layout|load|loaded|loading|paid|pay|program|programmed|programming|record|recorded|recording|register|registered|registration|release|released|requisite|requisites|route|routed|routing|scale|scaled|scaler|scaling|select|selected|selection|selector|set|setting|sort|sorted|sorting|store|stored|storing|train|trained|training|treat|treated|treatment|view|viewed|viewing|warm|warmed|warming)$/.test(t)) return true;
-    if (h === 'in' && /^(?:memory|chip|situ|line|plane|phase|place|order|band|loop|house|depth|flight|focus|group|kind|law|laws|network|package|patient|person|pixel|play|point|process|sensor|service|sight|source|specie|state|step|store|stream|system|tank|target|text|time|touch|transit|turn|use|vitro|vivo|wall|water|world)$/.test(t)) return true;
-    if (h === 'sub' && /^(?:array|arrays|band|bands|block|blocks|channel|channels|circuit|circuits|class|classes|clock|clocks|column|columns|component|components|cycle|cycles|domain|domains|field|fields|figure|figures|frame|frames|graph|graphs|group|groups|grid|grids|image|images|interval|intervals|item|items|layer|layers|line|lines|list|lists|map|maps|matrix|matrices|menu|menus|micron|mm|model|models|module|modules|ms|net|nets|network|networks|node|nodes|ns|page|pages|panel|panels|part|parts|path|paths|pattern|patterns|phase|phases|pixel|pixels|plane|planes|problem|problems|process|processes|program|programs|project|projects|region|regions|ring|rings|routine|routines|row|rows|sample|samples|sampling|scale|scales|scheme|schemes|section|sections|sequence|sequences|set|sets|space|spaces|stage|stages|state|states|step|steps|stream|streams|string|strings|structure|structures|system|systems|table|tables|task|tasks|tensor|tensors|test|tests|text|texts|threshold|tile|tiles|topic|topics|total|tree|trees|type|types|unit|units|value|values|vector|vectors|view|views|window|windows|word|words|zone|zones|zero|diagonal)$/.test(t)) return true;
-    return false;
-  }
-  if (COMPOUND_PREFIX.test(h) && COMPOUND_SUFFIX.test(t) && h.length >= 3 && t.length >= 3) return true;
-  if (COMPOUND_SUFFIX.test(t) && h.length >= 4) return true;
-  return false;
-}
-
-function joinLines(left: string, right: string): string {
+function joinLines(left: string, right: string, docLexicon?: DocumentLexicon): string {
   if (/\u00ad$/.test(left))
     return left.slice(0, -1) + right;
   if (/[a-z]-$/i.test(left) && /^[a-z]/i.test(right)) {
-    return shouldKeepHyphen(left, right) ? left + right : left.slice(0, -1) + right;
+    return shouldKeepEndOfLineHyphen(left, right, docLexicon) ? left + right : left.slice(0, -1) + right;
   }
   if (/[\u3400-\u9fff]$/.test(left) && /^[\u3400-\u9fff]/.test(right))
     return left + right;
@@ -361,7 +326,7 @@ function dominantLeading(lines: Line[], body: number): number {
   return count >= 3 ? pitch * 1.3 : 0;
 }
 
-function paragraphs(lines: Line[], body: number, page: number, referenceState = { active: false }, leadingHint?: number): Paragraph[] {
+function paragraphs(lines: Line[], body: number, page: number, referenceState = { active: false }, leadingHint?: number, docLexicon?: DocumentLexicon): Paragraph[] {
   const out: Paragraph[] = [];
   let prev: Line | null = null;
   let inReferences = referenceState.active;
@@ -418,7 +383,7 @@ function paragraphs(lines: Line[], body: number, page: number, referenceState = 
     if (newParagraph)
       out.push({ ...line, text: line.text, textRuns: lineTextRuns(line), size: line.size, bold: line.bold, lines: 1, kind });
     else {
-      last.text = norm(joinLines(last.text, line.text));
+      last.text = norm(joinLines(last.text, line.text, docLexicon));
       last.textRuns = joinTextRuns(last.textRuns, lineTextRuns(line), last.text);
       Object.assign(last, unionRects([last, line]));
       last.lines++;
@@ -489,19 +454,85 @@ function joinHorizontalRules(drawings: Drawing[]): Drawing[] {
   return joined.filter(r => r.x1 - r.x0 > 30);
 }
 
+/**
+ * Detect whether semantic non-table content (a standalone caption, section heading,
+ * or continuous justified body prose) separates two horizontal table rules.
+ */
+function hasSemanticTableBarrier(
+  between: Line[],
+  prevRuleY1: number,
+  nextRuleY0: number,
+  bandWidth: number,
+  body: number,
+  pageNumber: number,
+): boolean {
+  for (let idx = 0; idx < between.length; idx++) {
+    const l = between[idx];
+    const cap = parseCaption(l.text);
+    if (cap && !isProseCaptionReference(cap) && !isWrappedProseMention(between[idx - 1], l)) return true;
+  }
+  // Table header/data cells sit tightly within cell padding of enclosing rules and often share a baseline
+  // across sibling columns (`method | 阵列规模 | Acc | NRMSE`). A real section heading or inter-table
+  // prose paragraph sits in a float gap (`> 1.3 * body`) and occupies its baseline alone.
+  if (!between.length || nextRuleY0 - prevRuleY1 < body * 2.5) return false;
+  const topMargin = between[0].y0 - prevRuleY1;
+  const bottomMargin = nextRuleY0 - between[between.length - 1].y1;
+  if (topMargin <= body * 1.3 && bottomMargin <= body * 1.3) return false;
+  for (const l of between) {
+    const sharesBaseline = between.some(other => other !== l && Math.abs(other.y - l.y) <= Math.max(2, l.size * .3));
+    if (sharesBaseline) continue;
+    const kind = lineKind(l, body, pageNumber);
+    if (kind === 'h2' || kind === 'h3' || isReferenceHeading({ kind, text: l.text })) return true;
+  }
+  let consecutiveProse = 0;
+  let prevProseY = -Infinity;
+  for (const l of between) {
+    const ink = l.items.filter(it => it.str.trim()).sort((a, b) => a.x - b.x);
+    const maxGap = ink.slice(1).reduce((m, it, idx) => Math.max(m, it.x - (ink[idx].x + ink[idx].w)), 0);
+    const nonSpace = l.text.replace(/\s+/g, '');
+    const letters = (nonSpace.match(/[A-Za-z\u3400-\u9fff]/g) ?? []).length;
+    const digits = (nonSpace.match(/\d/g) ?? []).length;
+    const isProseLine = nonSpace.length >= 16 && letters / nonSpace.length >= .80 && digits / nonSpace.length <= .08 &&
+      l.size >= body * .94 && l.x1 - l.x0 >= bandWidth * .82 && maxGap <= body * 1.8;
+    if (!isProseLine) {
+      consecutiveProse = 0;
+      prevProseY = -Infinity;
+      continue;
+    }
+    consecutiveProse = prevProseY > -Infinity && l.y - prevProseY <= l.size * 1.9 ? consecutiveProse + 1 : 1;
+    prevProseY = l.y;
+    if (consecutiveProse >= 3) return true;
+  }
+  return false;
+}
+
 /** Find horizontal rule bands of tables so internal table column gaps do not pollute detectGutter. */
-function tableRuleBands(drawings: Drawing[], pageHeight: number): Rect[] {
+function tableRuleBands(drawings: Drawing[], items: RawItem[], body: number, pageNumber: number, pageHeight: number): Rect[] {
   const rules = joinHorizontalRules(drawings).filter(r => r.x1 - r.x0 > 80);
   const bands: Rect[] = [];
   const used = new Set<Drawing>();
   for (const top of rules) {
     if (used.has(top)) continue;
-    const aligned = rules.filter(r => !used.has(r) && r.y0 >= top.y0 - 2 && r.y1 - top.y0 < pageHeight * .75 &&
-      Math.abs(r.x0 - top.x0) < 12 && Math.abs(r.x1 - top.x1) < 12);
-    if (aligned.length >= 2) {
-      const box = unionRects(aligned);
+    const candidates = rules.filter(r => !used.has(r) && r.y0 >= top.y0 - 2 && r.y1 - top.y0 < pageHeight * .85 &&
+      Math.abs(r.x0 - top.x0) < 12 && Math.abs(r.x1 - top.x1) < 12)
+      .sort((a, b) => a.y0 - b.y0);
+    if (candidates.length < 2) continue;
+    const bandWidth = top.x1 - top.x0;
+    const corridorLines = toLines(items.filter(it =>
+      it.x + it.w / 2 >= top.x0 - 8 && it.x + it.w / 2 <= top.x1 + 8 &&
+      it.y >= top.y0 - 2 && it.y <= candidates[candidates.length - 1].y1 + 2));
+    const memberRules = [candidates[0]];
+    for (let k = 1; k < candidates.length; k++) {
+      const prev = memberRules[memberRules.length - 1];
+      const next = candidates[k];
+      const between = corridorLines.filter(l => l.y0 > prev.y1 + 1 && l.y1 < next.y0 - 1);
+      if (hasSemanticTableBarrier(between, prev.y1, next.y0, bandWidth, body, pageNumber)) break;
+      memberRules.push(next);
+    }
+    if (memberRules.length >= 2) {
+      const box = unionRects(memberRules);
       if (box.y1 - box.y0 >= 14) {
-        aligned.forEach(r => used.add(r));
+        memberRules.forEach(r => used.add(r));
         bands.push(box);
       }
     }
@@ -509,11 +540,71 @@ function tableRuleBands(drawings: Drawing[], pageHeight: number): Rect[] {
   return bands;
 }
 
+/** Absorb non-text outlined/bitmap table notes below `box` up to the next semantic barrier (Ink Conservation). */
+function absorbOutlinedTableFootnotes(
+  initialBox: Rect,
+  lines: Line[],
+  drawings: Drawing[],
+  visibleRegions: PageRegion[],
+  body: number,
+  pageNumber: number,
+  limitY: number,
+): Rect {
+  let box = initialBox;
+  const linesBelow = lines.filter(l => l.y0 > box.y1 + 1 && l.y0 < limitY && xOverlap(l, box) > 0)
+    .sort((a, b) => a.y0 - b.y0);
+  let semanticFloorY = limitY;
+  for (let idx = 0; idx < linesBelow.length; idx++) {
+    const l = linesBelow[idx];
+    const cap = parseCaption(l.text);
+    if (cap && !isProseCaptionReference(cap) && !isWrappedProseMention(linesBelow[idx - 1], l)) {
+      semanticFloorY = Math.min(semanticFloorY, l.y0);
+      break;
+    }
+    const kind = lineKind(l, body, pageNumber);
+    if (kind === 'h2' || kind === 'h3' || isReferenceHeading({ kind, text: l.text }) ||
+        l.size >= body * .94 || (l.bold && l.text.length < 90)) {
+      semanticFloorY = Math.min(semanticFloorY, l.y0);
+      break;
+    }
+  }
+  // Selectable text-layer table notes remain owned by `extractTableNotes` so they stay translatable and highlightable.
+  const firstTextLineBelow = linesBelow.find(l => l.y0 < semanticFloorY);
+  const inkFloorY = firstTextLineBelow ? firstTextLineBelow.y0 : semanticFloorY;
+  const hasFigureCaptionBelow = (rect: Rect) => lines.some(l =>
+    parseCaption(l.text)?.kind === 'figure' && l.y0 >= rect.y1 - 3 && l.y0 - rect.y1 < 45 && xOverlap(l, rect) > 0);
+
+  const matchingRegion = visibleRegions.find(reg =>
+    Math.abs(reg.x0 - box.x0) < 10 && Math.abs(reg.x1 - box.x1) < 10 &&
+    reg.y0 <= box.y0 + 6 && reg.y1 >= box.y1 - 2 && reg.y1 < inkFloorY &&
+    !hasFigureCaptionBelow(reg));
+  if (matchingRegion) box = unionRects([box, matchingRegion]);
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const attached = drawings.filter(d =>
+      d.x0 >= box.x0 - 6 && d.x1 <= box.x1 + 6 &&
+      d.y0 >= box.y0 - 2 && d.y0 <= box.y1 + body * 1.2 &&
+      d.y1 > box.y1 && d.y1 < inkFloorY &&
+      !hasFigureCaptionBelow(d));
+    if (attached.length) {
+      const nextBox = unionRects([box, ...attached]);
+      if (nextBox.y1 > box.y1 + .1 || nextBox.x0 < box.x0 - .1 || nextBox.x1 > box.x1 + .1) {
+        box = nextBox;
+        changed = true;
+      }
+    }
+  }
+  return box;
+}
+
 function identifyTables(
   lines: Line[],
   drawings: Drawing[],
   visibleRegions: PageRegion[],
   cols: Column[],
+  gutter: number | null,
   body: number,
   pageNumber: number,
   height: number,
@@ -550,12 +641,15 @@ function identifyTables(
     const rawRulesBelow = hRules.filter(r => r.y0 > caption.y && r.y1 < limitY && r.x1 - r.x0 > 60).sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
     const wideTop = rawRulesBelow.find(r => r.y0 - captionBox.y1 <= 65 && r.x0 < cx && r.x1 > cx &&
       cols.length > 1 && r.x0 < cols[0].x1 - 4 && r.x1 > cols[1].x0 + 4);
+    const isSingleCol = !spansGutter && !wideTop && gutter !== null;
+    const sameGutterSide = (rect: Pick<Rect, 'x0' | 'x1'>) =>
+      !isSingleCol || ((rect.x0 + rect.x1) / 2 < gutter!) === (cx < gutter!);
     const spanX0 = Math.min(col.x0, captionBox.x0, wideTop ? cols[0].x0 : col.x0);
     const spanX1 = Math.max(col.x1, captionBox.x1, wideTop ? cols[cols.length - 1].x1 : col.x1);
     // Side-by-side subtables under one caption (e.g. C2-LSM Table I) share y-aligned horizontal rules across the span.
     const mergedRules: Drawing[] = [];
     for (const r of rawRulesBelow) {
-      if (r.x0 < spanX0 - 12 || r.x1 > spanX1 + 12) continue;
+      if (!sameGutterSide(r) || r.x0 < spanX0 - 12 || r.x1 > spanX1 + 12) continue;
       const sameY = mergedRules.find(m => Math.abs(m.y0 - r.y0) <= 2);
       if (sameY) {
         sameY.x0 = Math.min(sameY.x0, r.x0);
@@ -566,9 +660,19 @@ function identifyTables(
         mergedRules.push({ ...r });
       }
     }
-    const rules = mergedRules.filter(r => r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80).sort((a, b) => a.y0 - b.y0);
-    const top = rules[0];
+    const candidateRules = mergedRules.filter(r => r.x0 < cx && r.x1 > cx && r.x1 - r.x0 > 80).sort((a, b) => a.y0 - b.y0);
+    const top = candidateRules[0];
     if (top && top.y0 - captionBox.y1 <= 65) {
+      const rules = [top];
+      const corridorWidth = Math.max(spanX1 - spanX0, top.x1 - top.x0);
+      for (let k = 1; k < candidateRules.length; k++) {
+        const prev = rules[rules.length - 1];
+        const next = candidateRules[k];
+        const between = lines.filter(l => sameGutterSide(l) && xOverlap(l, { x0: spanX0, x1: spanX1 }) > 0 &&
+          l.y0 > prev.y1 + 1 && l.y1 < next.y0 - 1);
+        if (hasSemanticTableBarrier(between, prev.y1, next.y0, corridorWidth, body, pageNumber)) break;
+        rules.push(next);
+      }
       const maxRuleWidth = Math.max(...rules.filter(r => r.y0 - captionBox.y1 <= 85).map(r => r.x1 - r.x0));
       const fullRules = rules.filter(r => r.x1 - r.x0 >= maxRuleWidth - 12);
       const bottomFull = fullRules[fullRules.length - 1];
@@ -576,24 +680,14 @@ function identifyTables(
         const tableRules = mergedRules.filter(r => r.y0 >= top.y0 - 2 && r.y1 <= bottomFull.y1 + 2 &&
           r.x0 >= Math.min(spanX0, top.x0) - 8 && r.x1 <= Math.max(spanX1, top.x1) + 8);
         let box = unionRects([top, bottomFull, ...tableRules]);
-        const headerLinesAboveTop = lines.filter(l => l.y0 > captionBox.y1 + 2 && top.y0 - l.y1 >= -1 && top.y0 - l.y1 <= 4 &&
-          l.x0 >= box.x0 - 8 && l.x1 <= box.x1 + 8);
+        const headerLinesAboveTop = lines.filter(l => sameGutterSide(l) && l.y0 > captionBox.y1 + 2 &&
+          top.y0 - l.y1 >= -1 && top.y0 - l.y1 <= 4 && l.x0 >= box.x0 - 8 && l.x1 <= box.x1 + 8);
         if (headerLinesAboveTop.length) box = unionRects([box, ...headerLinesAboveTop]);
-        const cellLines = lines.filter(l => l.y0 >= box.y0 - 2 && l.y1 <= box.y1 + 2 &&
+        const cellLines = lines.filter(l => sameGutterSide(l) && l.y0 >= box.y0 - 2 && l.y1 <= box.y1 + 2 &&
           l.x0 >= Math.min(spanX0, box.x0) - 8 && l.x1 <= Math.max(spanX1, box.x1) + 8);
         if (cellLines.length) box = unionRects([box, ...cellLines]);
         if (box.y1 - box.y0 >= 16) {
-          // If the clustered drawing region includes outlined table notes or bottom borders
-          // immediately below the last rule, union it so the table is neither clipped nor duplicated.
-          const matchingRegion = visibleRegions.find(reg =>
-            Math.abs(reg.x0 - box.x0) < 8 && Math.abs(reg.x1 - box.x1) < 8 &&
-            reg.y0 <= box.y0 + 4 && reg.y1 >= box.y1 - 2 && reg.y1 <= Math.min(limitY, box.y1 + body * 2.5));
-          if (matchingRegion) box = unionRects([box, matchingRegion]);
-          const attachedDrawings = drawings.filter(d =>
-            d.x0 >= box.x0 - 4 && d.x1 <= box.x1 + 4 &&
-            d.y0 >= box.y0 - 2 && d.y0 <= box.y1 + body * .6 &&
-            d.y1 <= Math.min(limitY, box.y1 + body * 2));
-          if (attachedDrawings.length) box = unionRects([box, ...attachedDrawings]);
+          box = absorbOutlinedTableFootnotes(box, lines, drawings, visibleRegions, body, pageNumber, limitY);
           tables.push({ ...box, kind: 'table', parts: tableRules.length, rules: { h: tableRules.length, v: 0 } });
           continue;
         }
@@ -601,11 +695,13 @@ function identifyTables(
     }
     // Fallback for bitmap/boxed tables without individual horizontal path strokes (e.g. JSSC comparison tables).
     const bitmapTable = visibleRegions.find(reg =>
+      sameGutterSide(reg) &&
       reg.y0 >= captionBox.y0 - 2 && reg.y0 - captionBox.y1 <= 30 && reg.y1 < limitY &&
       reg.x0 < cx && reg.x1 > cx && reg.x1 - reg.x0 > 120 && reg.y1 - reg.y0 >= 24 &&
       !lines.some(l => parseCaption(l.text)?.kind === 'figure' && l.y0 >= reg.y1 - 3 && l.y0 - reg.y1 < 40 && xOverlap(l, reg) > 0));
     if (bitmapTable) {
-      tables.push({ ...bitmapTable, kind: 'table' });
+      const box = absorbOutlinedTableFootnotes(bitmapTable, lines, drawings, visibleRegions, body, pageNumber, limitY);
+      tables.push({ ...bitmapTable, ...box, kind: 'table' });
     }
   }
   return tables;
@@ -858,15 +954,35 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   // though their glyphs are removed from ordinary text immediately afterward.
   // Algorithm glyphs and line numbers never participate in ordinary columns or paragraphs.
   items = items.filter(it => ![...algorithms, ...codeFigures].some(region => centerInside(it, region)));
-  const ruleBands = tableRuleBands(geom.drawings, H);
+  const ruleBands = tableRuleBands(geom.drawings, items, body, pageNumber, H);
   const inTableBand = (it: RawItem) => ruleBands.some(b =>
     it.x + it.w / 2 >= b.x0 - 6 && it.x + it.w / 2 <= b.x1 + 6 &&
     it.y >= b.y0 - body * 1.2 && it.y <= b.y1 + 4);
-  const preGutter = detectGutter(items.filter(it => !inTableBand(it) && !algorithms.some(region => centerInside(it, region))), W);
+  const applyGutterPrior = (detected: number | null, pool: RawItem[]): number | null => {
+    if (detected !== null || options.documentGutterRatio == null) return detected;
+    const candidate = options.documentGutterRatio * W;
+    const probeLines = toLines(pool);
+    const hasSpanningProse = probeLines.some(l =>
+      l.x0 < candidate - body * 2.2 && l.x1 > candidate + body * 2.2 &&
+      /[A-Za-z\u3400-\u9fff]{3,}/.test(l.text));
+    if (hasSpanningProse) return null;
+    const leftEvidence = probeLines.some(l => l.x1 <= candidate + 6) ||
+      ruleBands.some(b => b.x1 <= candidate + 6) ||
+      geom.regions.some(r => r.x1 <= candidate + 6);
+    const rightEvidence = probeLines.some(l => l.x0 >= candidate - 6) ||
+      ruleBands.some(b => b.x0 >= candidate - 6) ||
+      geom.regions.some(r => r.x0 >= candidate - 6);
+    return leftEvidence && rightEvidence ? candidate : null;
+  };
+  const prePool = items.filter(it => !inTableBand(it) && !algorithms.some(region => centerInside(it, region)));
+  const preGutter = applyGutterPrior(detectGutter(prePool, W), prePool);
   const composites = options.keepFigures ? identifyCompositeFigures(items, geom.regions, body, W, H, preGutter) : [];
   const compositeCaptionItems = new Set(composites.flatMap(figure => figure.caption.flatMap(line => line.items)));
-  const gutter = detectGutter(items.filter(it => !inTableBand(it) && !algorithms.some(region => centerInside(it, region)) &&
-    !compositeCaptionItems.has(it) && !composites.some(figure => centerInside(it, figure.box))), W);
+  const gutterPool = items.filter(it => !inTableBand(it) && !algorithms.some(region => centerInside(it, region)) &&
+    !compositeCaptionItems.has(it) && !composites.some(figure => centerInside(it, figure.box)));
+  const rawPageGutter = detectGutter(gutterPool, W);
+  options.onPageGutter?.(rawPageGutter !== null && W > 0 ? rawPageGutter / W : null);
+  const gutter = applyGutterPrior(rawPageGutter, gutterPool);
   items = items.filter(it => !compositeCaptionItems.has(it) && !composites.some(figure => centerInside(it, figure.box)));
   const portraits = usedOCR ? [] : identifyAuthorPortraits(items, geom.drawings, W, H, body,
     pageNumber, options.documentPageCount, toLines);
@@ -878,7 +994,7 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   const visibleDrawings = geom.drawings.filter(drawing => !coveredBy(drawing, [...algorithms, ...codeFigures, ...portraits, ...composites.map(x => x.box)]));
   const cols = columnsFor(items, W, gutter);
   const allLines = toLines(items, Math.max(12, body * 1.2), gutter);
-  const tables = usedOCR ? [] : identifyTables(allLines, visibleDrawings, visibleRegions, cols, body, pageNumber, H);
+  const tables = usedOCR ? [] : identifyTables(allLines, visibleDrawings, visibleRegions, cols, gutter, body, pageNumber, H);
   const plates = usedOCR || !options.keepFigures ? [] :
     matchFigurePlates(visibleDrawings, visibleRegions, allLines, W, H, line => lineKind(line, body, pageNumber) === 'p');
   const plateItems = new Set(plates.flatMap(plate => plate.caption.items));
@@ -1027,21 +1143,27 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
   }
   const spanItems = new Set(spans.flatMap(l => l.items));
   remaining = remaining.filter(it => !spanItems.has(it));
-  const streams = gutter === null ? [{ column: 0, items: remaining }] : [
+  const rawStreams = gutter === null ? [{ column: 0, items: remaining }] : [
     { column: 0, items: remaining.filter(it => it.x + it.w / 2 < gutter) },
     { column: 1, items: remaining.filter(it => it.x + it.w / 2 >= gutter) },
     { column: -1, items: [...spanItems] },
   ];
+  const streams = rawStreams.map(stream => ({ ...stream, lines: toLines(stream.items) }));
+  const docLexicon = options.documentLexicon ?? (() => {
+    const acc = createDocumentLexiconAccumulator();
+    acc.addLines(streams.flatMap(stream => stream.lines));
+    return acc.finish();
+  })();
   const referenceState = { active: false };
   for (const stream of streams) {
-    const lines = toLines(stream.items);
+    const lines = stream.lines;
     identifyPublicationHeaders(lines, H, pageNumber);
     if (pageNumber === 1) identifyFrontMatter(lines, body, H);
     const ordinary: Line[] = [];
     // Captions split the stream into short batches; measure leading on the whole stream.
     const leading = dominantLeading(lines, body);
     const flush = () => {
-      for (const p of paragraphs(ordinary, body, pageNumber, referenceState, leading)) {
+      for (const p of paragraphs(ordinary, body, pageNumber, referenceState, leading, docLexicon)) {
         add(p.kind, p.text, p, { sourceFontSize: p.size, textRuns: p.textRuns, readingRole: p.readingRole });
         const current = placed[placed.length - 1];
         current.column = stream.column;
@@ -1162,23 +1284,90 @@ export async function analyzePage(page: PDFPageProxy, pageNumber: number, paperI
 }
 
 export async function analyzeDocument(pdf: PDFDocumentProxy, paperId: string, options: AnalyzeOptions): Promise<Block[]> {
-  const blocks: Block[] = [];
+  const lexAcc = createDocumentLexiconAccumulator();
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    try {
+      const vp = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
+      const styles = (content.styles ?? {}) as Record<string, { ascent?: number; descent?: number }>;
+      const rawItems: RawItem[] = [];
+      for (const rawEntry of content.items as ReadonlyArray<{ str?: unknown; fontName?: unknown; width?: unknown; transform?: unknown }>) {
+        if (typeof rawEntry?.str !== 'string' || !Array.isArray(rawEntry.transform)) continue;
+        const transform = rawEntry.transform as number[];
+        const tx = multiplyMatrices(vp.transform, transform);
+        const size = Math.hypot(tx[2], tx[3]);
+        if (!(size > 0)) continue;
+        const style = typeof rawEntry.fontName === 'string' ? styles[rawEntry.fontName] : undefined;
+        const ascent = style?.ascent && style.ascent > 0 ? style.ascent : .82;
+        const descent = style?.descent && style.descent < 0 ? -style.descent : .22;
+        const width = typeof rawEntry.width === 'number' ? rawEntry.width : 0;
+        const box = transformRect(vp.transform, transform[4], transform[5] - size * descent,
+          transform[4] + width, transform[5] + size * ascent);
+        rawItems.push({ str: rawEntry.str, x: box.x0, y: tx[5], w: box.x1 - box.x0, h: size, top: box.y0, bottom: box.y1, bold: false, font: '' });
+      }
+      lexAcc.addLines(toLines(rawItems, Math.max(12, bodySize(rawItems) * 1.2)));
+    } catch (error) {
+      throw new Error(`第 ${p} 页解析失败：${error instanceof Error ? error.message : String(error)}`, { cause: error });
+    } finally {
+      page.cleanup();
+    }
+  }
+  const documentLexicon = lexAcc.finish();
+
+  const pageBlocks: Block[][] = new Array(pdf.numPages);
+  const pageGutters: (number | null)[] = new Array(pdf.numPages).fill(null);
   const pageHeights = new Map<number, number>();
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     pageHeights.set(p, page.getViewport({ scale: 1 }).height);
     try {
-      blocks.push(...await analyzePage(page, p, paperId, { ...options, documentPageCount: pdf.numPages }));
-    }
-    catch (error) {
+      pageBlocks[p - 1] = await analyzePage(page, p, paperId, {
+        ...options,
+        documentPageCount: pdf.numPages,
+        documentLexicon,
+        onPageGutter: ratio => { pageGutters[p - 1] = ratio; },
+      });
+    } catch (error) {
       throw new Error(`第 ${p} 页解析失败：${error instanceof Error ? error.message : String(error)}`, { cause: error });
-    }
-    finally {
+    } finally {
       page.cleanup();
     }
     options.onProgress?.(p, pdf.numPages);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    const turn = Promise.withResolvers<void>();
+    setTimeout(turn.resolve, 0);
+    await turn.promise;
   }
+
+  // If the document has a strong masked double-column layout consensus (>=60% of pages),
+  // re-analyze only visual-dense pages where masked detectGutter lacked enough prose rows.
+  const validRatios = pageGutters.filter((r): r is number => r !== null && r >= .40 && r <= .60);
+  if (validRatios.length >= 2 && validRatios.length >= pdf.numPages * .60 && pageGutters.some(r => r === null)) {
+    const sorted = [...validRatios].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const inliers = sorted.filter(r => Math.abs(r - median) <= .012);
+    if (inliers.length >= 2 && inliers.length >= pdf.numPages * .60) {
+      const documentGutterRatio = inliers.reduce((s, v) => s + v, 0) / inliers.length;
+      for (let p = 1; p <= pdf.numPages; p++) {
+        if (pageGutters[p - 1] !== null) continue;
+        const page = await pdf.getPage(p);
+        try {
+          pageBlocks[p - 1] = await analyzePage(page, p, paperId, {
+            ...options,
+            documentPageCount: pdf.numPages,
+            documentLexicon,
+            documentGutterRatio,
+          });
+        } catch (error) {
+          throw new Error(`第 ${p} 页解析失败：${error instanceof Error ? error.message : String(error)}`, { cause: error });
+        } finally {
+          page.cleanup();
+        }
+      }
+    }
+  }
+
+  const blocks = pageBlocks.flat();
   identifyRepeatedPublicationHeaders(blocks, pageHeights);
   const result = blocks.map((block, ord) => ({ ...block, ord }));
   classifyReadingRoles(result, pdf.numPages);

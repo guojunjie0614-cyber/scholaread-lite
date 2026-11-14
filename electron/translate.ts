@@ -4,7 +4,7 @@ import type { ProviderConfig, TranslateResult, TranslationPriority, TranslationO
 import { settings } from './settings.js';
 import { translations } from './db.js';
 import { legacyTranslationSource, protectTranslationMath, restoreCachedTranslationMath, stripEchoedSourcePrefix, translatedRuns } from '../shared/translation-scripts.js';
-import { MAGPIE_BASE_URL, magpieBaseUrl, magpieReasoningEffort, openaiCompatibleBaseUrl } from './magpie.js';
+import { MAGPIE_BASE_URL, magpieBaseUrl, magpieReasoningEffort, ollamaBaseUrl, openaiCompatibleBaseCandidates, pinProbedBaseUrl } from './magpie.js';
 import { appFetch } from './http.js';
 import {
   consumeTranslationResponse, TranslationSegments, TranslationFormatError, TranslationIncompleteError, TranslationNetworkError,
@@ -197,13 +197,16 @@ interface ProviderContext {
 async function llmRequest(texts: string[], ids: number[], context: ProviderContext): Promise<void> {
   const { provider, cfg, target, signal, getPriority, timing, publish } = context;
   let url: string;
+  let fallbackUrl: string | undefined;
+  let fallbackBase: string | undefined;
   let payload: Record<string, unknown>;
   let api: TranslationWireApi;
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   const input = markedInput(texts, ids);
   if (provider === 'ollama') {
+    if (!context.model.trim()) throw new TranslateError('请先在设置 → 翻译服务中选择模型', provider);
     api = 'ollama';
-    url = `${(cfg.baseUrl ?? 'http://127.0.0.1:11434').replace(/\/+$/, '')}/api/chat`;
+    url = `${ollamaBaseUrl(cfg.baseUrl ?? '')}/api/chat`;
     payload = { model: context.model, stream: true, options: { temperature: cfg.temperature ?? 0.2 },
       messages: [{ role: 'system', content: systemPrompt(target) }, { role: 'user', content: input }] };
   } else {
@@ -212,36 +215,52 @@ async function llmRequest(texts: string[], ids: number[], context: ProviderConte
     if (!magpie && !cfg.apiKey) throw new TranslateError(`${provider} 未配置 API Key（设置 → 翻译）`, provider);
     const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
     const label = provider === 'deepseek' ? 'DeepSeek 接口' : 'OpenAI 兼容接口';
-    const baseUrl = magpie
-      ? magpieBaseUrl(cfg.baseUrl ?? MAGPIE_BASE_URL)
-      : openaiCompatibleBaseUrl(cfg.baseUrl ?? '', defaultBase, label);
+    const candidates = magpie
+      ? [magpieBaseUrl(cfg.baseUrl ?? MAGPIE_BASE_URL)]
+      : openaiCompatibleBaseCandidates(cfg.baseUrl ?? '', defaultBase, label);
+    const baseUrl = candidates[0];
     if (!magpie) headers.authorization = `Bearer ${cfg.apiKey}`;
     const effort = magpie ? magpieReasoningEffort(cfg) : cfg.reasoningEffort === 'default' ? undefined : cfg.reasoningEffort;
     api = cfg.api === 'responses' ? 'responses' : 'chat';
-    url = `${baseUrl}/${api === 'responses' ? 'responses' : 'chat/completions'}`;
+    const suffix = api === 'responses' ? 'responses' : 'chat/completions';
+    url = `${baseUrl}/${suffix}`;
+    if (candidates.length > 1) {
+      fallbackBase = candidates[1];
+      fallbackUrl = `${candidates[1]}/${suffix}`;
+    }
     payload = api === 'responses'
       ? { model: context.model, stream: true, ...(effort ? { reasoning: { effort } } : {}), instructions: systemPrompt(target), input }
       : { model: context.model, stream: true, temperature: cfg.temperature ?? 0.2,
         ...(effort ? { reasoning_effort: effort } : {}),
         messages: [{ role: 'system', content: systemPrompt(target) }, { role: 'user', content: input }] };
   }
-  const segments = new TranslationSegments(ids, publish);
+  let emittedAny = false;
+  const segments = new TranslationSegments(ids, (index, text) => {
+    emittedAny = true;
+    publish(index, text);
+  });
   let usage: TranslationUsage | undefined;
+  const send = (targetUrl: string, bodyPayload: Record<string, unknown>) =>
+    providerRequest(targetUrl, { method: 'POST', headers, body: JSON.stringify(bodyPayload) }, provider,
+      signal, getPriority, timing, response => consumeTranslationResponse(response, api, segments, value => { usage = value; }));
   try {
     try {
-      await providerRequest(url, { method: 'POST', headers, body: JSON.stringify(payload) }, provider,
-        signal, getPriority, timing, response => consumeTranslationResponse(response, api, segments, value => { usage = value; }));
+      await send(url, payload);
     } catch (error) {
+      if (error instanceof TranslationHttpError && error.status === 404 && fallbackUrl && fallbackBase && !emittedAny) {
+        await send(fallbackUrl, payload);
+        pinProbedBaseUrl(fallbackBase);
+        return;
+      }
       const hasOptionalParams = payload.temperature !== undefined || payload.reasoning_effort !== undefined || payload.reasoning !== undefined;
-      if (error instanceof TranslationHttpError && error.status === 400 && hasOptionalParams && provider !== 'ollama') {
+      if (error instanceof TranslationHttpError && error.status === 400 && hasOptionalParams && provider !== 'ollama' && !emittedAny) {
         const fallbackPayload = { ...payload };
         delete fallbackPayload.temperature;
         delete fallbackPayload.reasoning_effort;
         delete fallbackPayload.reasoning;
         timing.retries++;
         observe(timing, 'retry-without-optional-params', { status: 400, ...(error.detail ? { detail: error.detail } : {}) });
-        await providerRequest(url, { method: 'POST', headers, body: JSON.stringify(fallbackPayload) }, provider,
-          signal, getPriority, timing, response => consumeTranslationResponse(response, api, segments, value => { usage = value; }));
+        await send(url, fallbackPayload);
       } else {
         throw error;
       }

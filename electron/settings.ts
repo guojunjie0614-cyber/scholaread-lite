@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { paths } from './paths.js';
 import type { DeepPartial, Settings } from '../shared/types.js';
-import { MAGPIE_BASE_URL, magpieBaseUrl, magpieReasoningEffort, openaiCompatibleBaseUrl } from './magpie.js';
+import { MAGPIE_BASE_URL, OLLAMA_BASE_URL, magpieBaseUrl, magpieReasoningEffort, ollamaBaseUrl, openaiCompatibleBaseUrl } from './magpie.js';
 import { REASONING_EFFORTS } from '../shared/model-reasoning.js';
 
 const DEFAULTS: Settings = {
@@ -24,7 +24,7 @@ const DEFAULTS: Settings = {
         model: 'deepseek-chat',
         temperature: 0.2,
       },
-      ollama: { baseUrl: 'http://127.0.0.1:11434', model: 'qwen2.5:7b' },
+      ollama: { baseUrl: OLLAMA_BASE_URL, model: 'qwen2.5:7b' },
       deepl: { apiKey: '', endpoint: 'https://api-free.deepl.com/v2/translate' },
       google: { apiKey: '' },
       echo: {},
@@ -86,6 +86,16 @@ export const settings = {
           },
         };
       }
+    }
+    const ollamaConfig = next.translate.providers.ollama;
+    if (ollamaConfig && typeof ollamaConfig.baseUrl === 'string') {
+      next.translate = {
+        ...next.translate,
+        providers: {
+          ...next.translate.providers,
+          ollama: { ...ollamaConfig, baseUrl: ollamaBaseUrl(ollamaConfig.baseUrl) },
+        },
+      };
     }
     if (next.translate.activeProvider === 'magpie') {
       const config = next.translate.providers.magpie;

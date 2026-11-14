@@ -16,13 +16,12 @@ import { stopFormulaOcr } from './formula-ocr.js';
 import { stopChatAgents } from './chat/service.js';
 import { papers } from './db.js';
 import { registerIpc } from './ipc.js';
-import { resolvePaperFile } from './paths.js';
+import { initAppPaths, resolvePaperFile } from './paths.js';
 import { settings } from './settings.js';
 
+initAppPaths();
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const appIcon = path.join(app.getAppPath(), 'assets/app-icon.png');
-app.setName('ScholarLite');
-
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'slite',

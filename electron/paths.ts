@@ -2,11 +2,24 @@ import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 
-app.setName('ScholarLite');
-app.setPath('userData', path.join(app.getPath('appData'), 'ScholarLite'));
+let initialized = false;
 
-const root = () => app.getPath('userData');
+/** Configure Electron's application name and userData directory once when running inside Electron. */
+export function initAppPaths(): void {
+  if (initialized) return;
+  initialized = true;
+  if (typeof app?.setName === 'function') {
+    app.setName('ScholarLite');
+  }
+  if (typeof app?.setPath === 'function' && typeof app?.getPath === 'function') {
+    app.setPath('userData', path.join(app.getPath('appData'), 'ScholarLite'));
+  }
+}
 
+const root = () => {
+  initAppPaths();
+  return app.getPath('userData');
+};
 export const paths = {
   root,
   library: () => path.join(root(), 'library'),

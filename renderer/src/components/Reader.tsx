@@ -97,10 +97,7 @@ function restoredPageStates(blocks: Block[], translated: TranslatedBlocks, state
 }
 
 
-/** The reading line stays inside a long page regardless of its viewport intersection ratio. */
-export function readingPageAtLine(pages: Array<{ page: number; top: number; bottom: number }>, line: number): number | null {
-  return pages.find(page => page.bottom > line)?.page ?? pages.at(-1)?.page ?? null;
-}
+export { readingPageAtLine } from '@/lib/reader-layout';
 
 function splitByHighlights(
   text: string,

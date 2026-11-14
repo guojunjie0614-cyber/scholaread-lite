@@ -56,7 +56,7 @@ try {
       builder.onLoad({ filter: /.*/, namespace: 'test' }, args => ({ contents: stubs[args.path], loader: 'js' }));
     } }],
   });
-  const { magpieModels, magpieBaseUrl, openaiCompatibleBaseUrl, providerModels } = await import(pathToFileURL(path.join(temporary, 'magpie.mjs')));
+  const { magpieModels, magpieBaseUrl, ollamaBaseUrl, openaiCompatibleBaseUrl, providerModels } = await import(pathToFileURL(path.join(temporary, 'magpie.mjs')));
   const { translateBatch } = await import(pathToFileURL(path.join(temporary, 'translate.mjs')));
   const { parseScutilProxy } = await import(pathToFileURL(path.join(temporary, 'http.mjs')));
   assert.deepEqual(
@@ -76,6 +76,10 @@ try {
   assert.equal(openaiCompatibleBaseUrl('https://openrouter.ai/api/v1/models'), 'https://openrouter.ai/api/v1');
   assert.equal(openaiCompatibleBaseUrl('http://localhost:8000'), 'http://localhost:8000');
   assert.equal(openaiCompatibleBaseUrl('http://localhost:8000/models'), 'http://localhost:8000');
+  assert.equal(openaiCompatibleBaseUrl('https://api.siliconflow.cn'), 'https://api.siliconflow.cn/v1');
+  assert.equal(ollamaBaseUrl(''), 'http://127.0.0.1:11434');
+  assert.equal(ollamaBaseUrl('http://127.0.0.1:11434/v1'), 'http://127.0.0.1:11434');
+  assert.equal(ollamaBaseUrl('http://127.0.0.1:11434/api/chat'), 'http://127.0.0.1:11434');
   for (const invalid of ['file:///tmp/gateway', 'http://name:password@localhost/v1', `${baseUrl}?key=test`, '']) {
     assert.throws(() => magpieBaseUrl(invalid));
   }
@@ -93,6 +97,11 @@ try {
     { id: 'chat/model', label: 'chat/model', api: 'chat-completions' },
     { id: 'codex/model', label: 'Codex', api: 'chat-completions' },
   ]);
+  // Bare origin without `/v1` auto-probes `/models` (404) -> `/v1/models` (200) and pins `/v1`
+  const bareOrigin = baseUrl.replace(/\/v1$/, '');
+  const probedModels = await providerModels('openai', { baseUrl: bareOrigin, apiKey: 'sk-probe' });
+  assert.equal(probedModels.length, 2);
+  assert.equal(openaiCompatibleBaseUrl(bareOrigin), baseUrl);
   await assert.rejects(
     providerModels('openai', { baseUrl: 'http://127.0.0.1:9/v1/models', apiKey: 'sk-test-123' }),
     err => {

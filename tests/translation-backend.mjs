@@ -209,6 +209,26 @@ try {
   const healed = readCachedTranslations([pollutedSource], 'zh-CN');
   assert.equal(healed[0]?.text, 'B. 嵌入式通道选择');
   assert.equal(globalThis.backendTestCache.get('polluted-hash')?.result, 'B. 嵌入式通道选择');
+  // Case-altered echoed table captions and non-keyword academic labels (Theorem) are stripped via token alignment
+  globalThis.backendTestCache.set('case-echo-hash', {
+    hash: 'case-echo-hash',
+    target: 'zh-CN',
+    provider: 'openai',
+    model: 'gpt-5.4',
+    source: 'TABLE V: COMPARISON WITH PRIOR WORKS',
+    result: 'Table V: Comparison with prior works\n表 V：与先前工作的对比',
+  });
+  globalThis.backendTestCache.set('theorem-echo-hash', {
+    hash: 'theorem-echo-hash',
+    target: 'zh-CN',
+    provider: 'openai',
+    model: 'gpt-5.4',
+    source: 'Theorem 2.1 (Convergence).',
+    result: 'Theorem 2.1 (Convergence). 定理 2.1（收敛性）。',
+  });
+  const alignedHealed = readCachedTranslations(['TABLE V: COMPARISON WITH PRIOR WORKS', 'Theorem 2.1 (Convergence).'], 'zh-CN');
+  assert.equal(alignedHealed[0]?.text, '表 V：与先前工作的对比');
+  assert.equal(alignedHealed[1]?.text, '定理 2.1（收敛性）。');
   // Legitimate short English proper nouns/terms followed by a Chinese head noun must not be stripped or corrupted
   globalThis.backendTestCache.set('monte-carlo-hash', {
     hash: 'monte-carlo-hash',

@@ -11,3 +11,8 @@ export function readerLayout(viewportWidth: number, preferredChatWidth: number, 
   const sidebarVisible = sidebarRequested && (!aiOpen || viewportWidth - railWidth - chatWidth >= READER_MIN_WIDTH);
   return { chatWidth, maxChatWidth, sidebarVisible };
 }
+
+/** The reading line stays inside a long page regardless of its viewport intersection ratio. */
+export function readingPageAtLine(pages: Array<{ page: number; top: number; bottom: number }>, line: number): number | null {
+  return pages.find(page => page.bottom > line)?.page ?? pages.at(-1)?.page ?? null;
+}

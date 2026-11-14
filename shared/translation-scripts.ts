@@ -60,45 +60,141 @@ const mathPattern = () =>
 const SYMBOL_HEAD_CHAR = /[A-Za-z\u0370-\u03ff\u1d00-\u1d7f]/;
 const ATOM_CONT_CHAR = /[A-Za-z0-9\u0370-\u03ff\u1d00-\u1d7f]/;
 const CJK_OR_TARGET_SCRIPT = /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/;
-const SECTION_OR_LABEL_HEAD = /^(?:(?:\d+(?:\.\d+)*\.?\s+|[IVXLCDM]+\.\s+|[A-Z]\.\s+)[A-Za-z]{3,}|(?:index\s+terms|abstract|keywords?|fig(?:ure)?\.?\s*\d+|table\s+[IVXLCDM\d]+)\b)/i;
+const STRUCTURAL_ENUMERATOR = /^(?:\d+(?:[.-]\d+)*\.?\s+|[IVXLCDM]+\.\s+|[A-Z]\.\s+|\([A-Za-z0-9]+\)\s+)/;
+const ALIGN_WORD_RE = /[A-Za-z0-9\u0370-\u03ff]+/g;
 
-function isEchoableEnglishPrefix(prefix: string): boolean {
-  const plain = unescapeText(
-    prefix
-      .replace(spatialPattern(), ' ')
+function plainSourceForAlignment(raw: string): string {
+  return unescapeText(
+    raw
+      .replace(spatialPattern(), (_m, encoded) => {
+        try { return spatialRuns(encoded).map(r => r.text).join(''); }
+        catch { return ' '; }
+      })
       .replace(/<\/?(?:sub|sup)>/g, ' ')
       .replace(/⟦SLMATH_*:[^⟧]*⟧/g, ' '),
   ).trim();
-  if (!plain || CJK_OR_TARGET_SCRIPT.test(plain) || !/[A-Za-z]{3,}/.test(plain)) return false;
-  if (SECTION_OR_LABEL_HEAD.test(plain) || /[.!?;:]$/.test(plain)) return true;
-  const words = plain.match(/[A-Za-z]{2,}/g) ?? [];
-  return words.length >= 4;
+}
+
+interface PositionedToken {
+  norm: string;
+  start: number;
+  end: number;
+}
+
+/** Tokenize `text` while preserving exact character offsets across `<slmath>`, `<sub>`/`<sup>`, and `⟦SLMATH⟧` markup. */
+function tokenizePreservingOffsets(text: string, includeMathMarkers: boolean): PositionedToken[] {
+  const tokens: PositionedToken[] = [];
+  const markupRe = /<slmath>([^<>]*)<\/slmath>|<\/?(?:sub|sup)>|⟦SLMATH_*:[^⟧]*⟧/g;
+  let cursor = 0;
+  const pushPlainSlice = (slice: string, baseOffset: number) => {
+    for (const m of slice.matchAll(ALIGN_WORD_RE)) {
+      const start = baseOffset + m.index!;
+      tokens.push({ norm: m[0].toLowerCase(), start, end: start + m[0].length });
+    }
+  };
+  for (const match of text.matchAll(markupRe)) {
+    const idx = match.index!;
+    if (idx > cursor) pushPlainSlice(text.slice(cursor, idx), cursor);
+    const full = match[0];
+    if (full.startsWith('<slmath>')) {
+      let inner = '';
+      try { inner = spatialRuns(match[1]).map(r => r.text).join(''); } catch { inner = ''; }
+      const innerWords = inner.match(ALIGN_WORD_RE) ?? [];
+      for (const w of innerWords) {
+        tokens.push({ norm: w.toLowerCase(), start: idx, end: idx + full.length });
+      }
+    } else if (includeMathMarkers && full.startsWith('⟦SLMATH')) {
+      tokens.push({ norm: full.toLowerCase(), start: idx, end: idx + full.length });
+    }
+    cursor = idx + full.length;
+  }
+  if (cursor < text.length) pushPlainSlice(text.slice(cursor), cursor);
+  return tokens;
 }
 
 function extractRemainderAfterEchoedPrefix(candidatePrefix: string, fullText: string, target = 'zh-CN'): string | null {
   if (/^en\b/i.test(target)) return null;
-  const trimmedPrefix = candidatePrefix.trim();
+  const plainPrefix = plainSourceForAlignment(candidatePrefix);
   const trimmedFull = fullText.trim();
-  if (!trimmedPrefix || !trimmedFull || trimmedFull.length <= trimmedPrefix.length) return null;
-  if (!isEchoableEnglishPrefix(trimmedPrefix)) return null;
-  const escaped = trimmedPrefix
-    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    .replace(/\s+/g, '\\s+');
-  const match = trimmedFull.match(new RegExp(`^(${escaped})([\\s\\S]+)$`));
-  if (!match) return null;
-  const matchedHead = match[1];
-  const after = match[2];
+  if (!plainPrefix || !trimmedFull || CJK_OR_TARGET_SCRIPT.test(plainPrefix) || !/[A-Za-z]{3,}/.test(plainPrefix)) {
+    return null;
+  }
+  const includeMarkers = /⟦SLMATH_*:[^⟧]*⟧/.test(candidatePrefix);
+  const srcTokens = tokenizePreservingOffsets(unescapeText(candidatePrefix.trim()), includeMarkers).map(t => t.norm);
+  if (!srcTokens.length) return null;
+
+  const headTokens = tokenizePreservingOffsets(trimmedFull, includeMarkers);
+  if (headTokens.length <= srcTokens.length && !CJK_OR_TARGET_SCRIPT.test(trimmedFull)) return null;
+  if (!headTokens.length) return null;
+  // No non-punctuation text may precede the echoed source prefix.
+  const leadingSlice = trimmedFull.slice(0, headTokens[0].start);
+  if (CJK_OR_TARGET_SCRIPT.test(leadingSlice) || /[A-Za-z0-9]/.test(leadingSlice.replace(/<\/?(?:sub|sup)>|⟦SLMATH_*:[^⟧]*⟧/g, ''))) {
+    return null;
+  }
+
+  let i = 0;
+  let j = 0;
+  let matched = 0;
+  let lastEnd = 0;
+  const allowSkips = srcTokens.length >= 6;
+  while (i < srcTokens.length && j < headTokens.length) {
+    // Stop before crossing into CJK translation text between tokens.
+    if (j > 0 && CJK_OR_TARGET_SCRIPT.test(trimmedFull.slice(headTokens[j - 1].end, headTokens[j].start))) {
+      break;
+    }
+    if (srcTokens[i] === headTokens[j].norm) {
+      matched++;
+      lastEnd = headTokens[j].end;
+      i++;
+      j++;
+    } else if (i + 1 < srcTokens.length && srcTokens[i] + srcTokens[i + 1] === headTokens[j].norm) {
+      matched += 2;
+      lastEnd = headTokens[j].end;
+      i += 2;
+      j++;
+    } else if (j + 1 < headTokens.length && srcTokens[i] === headTokens[j].norm + headTokens[j + 1].norm) {
+      matched++;
+      lastEnd = headTokens[j + 1].end;
+      i++;
+      j += 2;
+    } else if (allowSkips && i + 1 < srcTokens.length && srcTokens[i + 1] === headTokens[j].norm) {
+      i++;
+    } else if (allowSkips && j + 1 < headTokens.length && srcTokens[i] === headTokens[j + 1].norm) {
+      j++;
+    } else {
+      break;
+    }
+  }
+
+  const fullMatch = matched === srcTokens.length || (allowSkips && matched / srcTokens.length >= 0.9);
+  if (!fullMatch || lastEnd <= 0) return null;
+
+  // Consume closing tags and trailing punctuation attached to the echoed source prefix.
+  let cut = lastEnd;
+  const tailClosing = trimmedFull.slice(cut).match(/^(?:<\/(?:sub|sup)>)+/);
+  if (tailClosing) cut += tailClosing[0].length;
+  const punctClosing = trimmedFull.slice(cut).match(/^[.!?;:)\]"'”’]+/);
+  if (punctClosing) cut += punctClosing[0].length;
+
+  const matchedHead = trimmedFull.slice(0, cut);
+  const after = trimmedFull.slice(cut);
   const validBoundary =
     /^[\s\r\n:;—–-]+/.test(after) ||
     /[.!?;:)\]]$/.test(matchedHead) ||
     CJK_OR_TARGET_SCRIPT.test(after[0] ?? '');
   if (!validBoundary) return null;
-  const remainder = after.replace(/^[\s\r\n]+/, '').trim();
-  if (!remainder || remainder === matchedHead.trim()) return null;
+  const hasLineBreak = /^[^\S\r\n]*[\r\n]/.test(after);
+  const remainder = after.replace(/^[\s\r\n]+/, '').replace(/^[:;—–-]+\s*/, '').trim() || after.replace(/^[\s\r\n]+/, '').trim();
+  if (!remainder || remainder.toLowerCase() === matchedHead.trim().toLowerCase()) return null;
   if (/^(?:zh|ja|ko)\b/i.test(target)) {
     const cjkCount = (remainder.match(new RegExp(CJK_OR_TARGET_SCRIPT.source, 'g')) ?? []).length;
     if (cjkCount === 0) return null;
-    if (!SECTION_OR_LABEL_HEAD.test(matchedHead.trim()) && !/[.!?;:]$/.test(matchedHead.trim()) && cjkCount < 4) {
+    const structurallyComplete =
+      hasLineBreak ||
+      STRUCTURAL_ENUMERATOR.test(plainPrefix) ||
+      /[.!?;:]$/.test(plainPrefix) ||
+      srcTokens.length >= 4;
+    if (!structurallyComplete && cjkCount < 4) {
       return null;
     }
   }

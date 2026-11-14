@@ -1,22 +1,15 @@
 /** Exercise the actual reader position selector without a DOM or model requests. */
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
-const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'scholarlite-reader-position-'));
-try {
-  const outfile = path.join(temp, 'position.mjs');
-  await build({
-    stdin: { contents: "export { readingPageAtLine } from './renderer/src/components/Reader.tsx';", resolveDir: process.cwd(), loader: 'ts' },
-    bundle: true, platform: 'node', format: 'esm', outfile, tsconfigRaw: { compilerOptions: { jsx: 'react' } },
-    plugins: [{ name: 'omit-unneeded-ui-imports', setup(builder) {
-      builder.onResolve({ filter: /.*/ }, args => args.path.endsWith('/Reader.tsx') ? undefined : { path: args.path, external: true, sideEffects: false });
-    } }],
-  });
-  const { readingPageAtLine } = await import(pathToFileURL(outfile));
+const { outputFiles } = await build({
+  entryPoints: ['renderer/src/lib/reader-layout.ts'],
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  write: false,
+});
+const { readingPageAtLine } = await import(`data:text/javascript;base64,${Buffer.from(outputFiles[0].text).toString('base64')}`);
   assert.equal(readingPageAtLine([], 72), null);
   assert.equal(readingPageAtLine([{ page: 1, top: 36, bottom: 10000 }], 72), 1);
   assert.equal(readingPageAtLine([
@@ -35,6 +28,3 @@ try {
   ], 72), 9, 'jumping to a page chooses its viewport position');
   assert.equal(readingPageAtLine([{ page: 14, top: -50, bottom: 50 }], 72), 14, 'the final short page remains selected near the bottom');
   console.log('PASS long-page tracking, reading-line boundaries, direct page jumps and final-page fallback');
-} finally {
-  await fs.rm(temp, { recursive: true, force: true });
-}
